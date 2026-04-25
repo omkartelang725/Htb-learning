@@ -1,0 +1,1269 @@
+
+<p><body>
+  <div class="container"></p>
+<link rel="stylesheet" href="style.css">
+
+
+<h1 id="active-directory-hardening-recon-initial-access">Active Directory Hardening - Recon &amp; Initial Access</h1>
+<h2 id="introduction-scenario">Introduction &amp; Scenario</h2>
+<hr>
+<p>Hardening Active Directory (AD) and remediating findings from third-party penetration tests and internal assessments, along with applying patches for newly disclosed vulnerabilities, performing ongoing security maintenance, and hardening tasks related to Active Directory, frequently fall under the responsibility of systems administrators. These professionals are often simultaneously tasked with numerous operational duties. Active Directory is notoriously vulnerable, from legacy configurations and abuse of built-in functionality to misconfigurations caused during routine setup and configuration changes and significant vulnerabilities with working public exploits. There is a lot to manage and unpack, a lot that can go wrong, and introducing a change in one place can introduce a vulnerability in another. Dealing with Active Directory security in on-premises environments can feel like playing whack-a-mole or patching holes in a leaky boat only to have another leak spring up. Whatever the analogy, Active Directory security is not for the faint of heart. A firm grasp of the issues throughout the penetration testing cycle is imperative for maintaining a well-hardened environment that properly supports day-to-day operations.</p>
+<p>Every penetration test or compromise starts with reconnaissance/enumeration. By cleaning up issues that allow for unauthenticated AD enumeration, we can slow an attacker down, but we must also deal with flaws that allow an unauthenticated attacker to gain initial access. The more difficult it is for an attacker to enumerate the environment or gain initial access, the noisier they will have to become, which increases their chances of being caught. However, we want to ensure that no initial access vectors exist. We will focus on the most common flaws seen across enterprises of all sizes, which are possible by an unauthenticated attacker who can gain internal network access.</p>
+<hr>
+<h3 id="scenario">Scenario</h3>
+<p>This module, and the others to follow in this path, will simulate a systems administrator at Wyrmwood Mining Co., a mining and logistics company that has just undergone its first internal penetration test. Until now, the focus has been on perimeter security with an annual external penetration test and quarterly vulnerability scans. Due to recent changes in IT leadership, including bringing in a more technical CISO, there is a renewed focus on internal network security, namely related to Active Directory and how far an attacker or malicious insider could go in the network.</p>
+<p>For now, we will focus on findings discovered from the primary corporate HQ domain, <code>wyrmwood.local</code>, which is used by departments such as core IT, HR, finance, logistics, and the executive teams. There are additional child domains, such as <code>ops.wyrmwood.local</code> , used by field personnel, on-site operators, and some legacy equipment, and <code>labs.wyrmwood.local</code> , which is used by the R\&amp;D division, which is developing next-gen geological sensors, mineral detection algorithms, and drone automation for underground mapping. There is also an external forest trust between <code>ops.wyrmwood.local</code> and <code>steelridge.industries</code> used by a heavy equipment and maintenance contractor for remote mining operations named SteelRidge Industrial Solutions. These will be evaluated in later modules.</p>
+<p>The results of this first internal penetration test were expected but still sobering. The consultant uncovered many weaknesses that allowed for unauthenticated enumeration and to gain an initial foothold in the domain. Multiple legacy configurations were in place that allowed for the enumeration of data, such as a complete list of AD users and the password policy. The consultant used these two key pieces of data for a successful password spraying attack. Various attack vectors were present for gaining initial access and kicking off attack chains that led to domain compromise. Some of these weaknesses include network traffic response spoofing attacks, coercion attacks, vulnerable applications and services, weak/default credentials, overly permissive file shares, and more.</p>
+<hr>
+<h3 id="module-layout">Module Layout</h3>
+<p>To provide a structured approach to learning how to address Active Directory security concerns, the module is divided into sections that will examine a specific issue, beginning with background context, followed by validation techniques, remediation procedures, and recommended hardening practices. The module will then conclude with a practical, hands-on skills assessment, where students will apply their knowledge to remediate a set of vulnerabilities and verify whether the applied fixes have resolved the issues effectively.</p>
+<p><em><strong>Note: Domain Admin credentials (**</strong><code>htb-student</code><strong><strong>&#x20;</strong></strong>user) are provided in sections 2-6 to follow along with the content and practice applying the fixes. We encourage that you practice each example while working through the sections to properly prepare for the Skills Assessment lab.**</em></p>
+<hr>
+<h2 id="pre-windows-2000-compatible-access-group">Pre-Windows 2000 Compatible Access Group</h2>
+<hr>
+<p>Legacy holdover configurations frequently persist in Active Directory environments, regardless of their size or maturity. A prominent example is the <a href="https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-adts/7a76a403-ed8d-4c39-adb7-a3255cab82c5">Pre-Windows 2000 Compatible Access group</a>. Contrary to common assumptions, this is not a setting <em>per se</em>, but rather a <code>built-in security principal</code> intended to maintain backward compatibility with legacy Windows NT-based systems and applications.</p>
+<p>The group was introduced when Windows 2000 was released to replace the Windows NT domain setup. This change moved from a flat directory to authenticate users and computers to the introduction of Active Directory with the concepts of domain trees and forests and the ability to create a hierarchical structure using Organizational Units (OUs) within a domain. This change allowed organizations to delegate permissions better and assign specific policies to a grouping of users or computers.</p>
+<p>The release of Active Directory also unlocked the ability to set permissions at both the object level (users, groups, and computers) as well as attributes (description, department, job title, group membership, etc.) for each individual object. This granular access control model granted systems administrators the capability to read or write all attributes of any Active Directory object, granting much more fine-grained control over the domain. The <code>Pre-Windows 2000 Compatible Access</code> group is pre-populated with the <code>Authenticated Users</code> group with any new deployment of Active Directory, even up to Windows Server 2022 and 2025.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/306/pre-win_group_properties.png" alt="Pre-Windows 2000 Compatible Access Properties dialog with group name, description, email, group scope, and type options."></p>
+<p>The group&#39;s description in Active Directory Users and Computers on a domain controller reads: <code>&quot;A backward compatibility group which allows</code> READ <code>access on all users and groups in the domain&quot;</code>. This group&#39;s purpose is in the name; it was designed to be compatible with Windows NT, allowing an admin to grant permissions at the object level instead of using more granular ones. In other words, if a user is a member of this group, they are granted <code>READ</code> access to all user and group objects across the domain.</p>
+<p>This was introduced to ensure older systems and applications could continue reading complete user and group lists without breaking during the transition to Active Directory in Windows 2000. However, what was practical 25 years ago now creates a security risk: any domain user can, by default, view most objects and their attributes (unless additional restrictions are implemented).</p>
+<p>This aids in enumeration (i.e., making a user list for password spraying or finding a password in a user or computer description field). In other words, in 2000, Active Directory was created as a large, read-only database for non-admin users, and this functionality is still the standard in most organizations.</p>
+<p>If we open <code>ADSI Edit</code> and the Advanced Security Settings for the domain object, we can see that the <code>Pre-Windows 2000 Compatible Access group</code> has <code>Special</code> permissions over users and groups in the domain. Read access from the top down, which is inherited down the entire hierarchy of OUs (applies to <code>Descendant InetOrgPerson objects</code>, <code>Descendant Group objects</code>, and <code>Descendant User objects</code>).</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/306/adsi_advanced_pre-win.png" alt="Advanced Security Settings for wyrmwood, showing owner, permissions, and options to add, remove, or view entries."></p>
+<p>If we click <code>Edit</code> for <code>Descendant User Objects</code>, for example, we see that these <code>Special</code> permissions equate to read access over all properties.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/306/adsi_pre-win_descendant.png" alt="Permission Entry for wyrmwood, showing principal, type, applies to, and various permission options."></p>
+<p>Once again, this is why if, during a penetration test, the consultant is able to take over a standard domain user account (or obtain NT AUTHORITY\SYSTEM rights over a domain-joined computer), they can proceed with detailed enumeration of the entire domain to look for flaws and plan out attack paths.</p>
+<p>You may be thinking, &quot;Why is this important?&quot; Well, when deploying a new AD forest using older versions of Windows Server (e.g., Windows Server 2003), you were explicitly asked if you would like to deploy to be compatible with pre-Windows 2000 versions.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/306/ad_wizard.png" alt="Active Directory Installation Wizard, Permissions screen with options for pre-Windows 2000 and Windows 2000 servers."></p>
+<p>When this was done, the <a href="https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/manage/understand-special-identities-groups#anonymous-logon">Anonymous Logon identity</a> and <a href="https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/manage/understand-special-identities-groups#everyone">Everyone group</a> were typically added as nested members of this group. This would grant both of these security principals read access over the entire Active Directory domain without needing to authenticate. Nowadays, it is less common to see the <code>Anonymous Logon identity</code> as part of this group, but it is still <em>very</em> common to see the <code>Everyone</code> group as part of it.</p>
+<p>While this is a legacy holdover from the earlier days of AD, it is still present in many modern environments, even with higher domain functional levels, such as functional level 2012. This is because these types of legacy settings are &quot;pulled up&quot; when domain functional level upgrades are performed over time, but a full security cleanup is not performed. In domains created on domain controllers starting with Windows Server 2008, systems administrators were no longer prompted to decide whether or not to add the <code>Everyone</code> group to the pre-windows 2000 group. Keep in mind that this was never a purely default setting, even when running the Active Directory wizard on a Windows Server 2000 box. However, it was likely chosen more often than not to avoid potential issues. The help page on a Windows Server 2000 domain controller for <code>Promoting a domain controller</code> even mentioned that removing the <code>Everyone</code> group would be the more secure configuration, but this advice likely was not always heeded or not practical at the time.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/306/AD_help.png" alt="Active Directory help window with navigation tree on the left and note about Windows 2000 server permissions on the right."></p>
+<p>If the <code>Everyone</code> group alone is found within the <code>Pre-Windows 2000 Compatible Access group</code> with no other settings in place within Group Policy, this is typically not enough to cause an issue. However, if the <code>Anonymous Logon</code> identity is a member of this group, then some major flaws will exist that an attacker can use to perform unauthenticated enumeration. There are various other conditions that are often present in Active Directory environments that we assess.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/306/pre-win_props.png" alt="Pre-Windows 2000 Compatible Access Properties, Members tab showing Anonymous Logon, Authenticated Users, and Everyone."></p>
+<p>In the next section, we will examine three methods penetration testers use to perform unauthenticated recon if the environment supports them. While outlier configurations may exist where these issues are still present, we will cover the major <em>whys</em> and methods to fix each.</p>
+<hr>
+<h2 id="unauthenticated-recon-enumeration-weaknesses">Unauthenticated Recon &amp; Enumeration Weaknesses</h2>
+<hr>
+<p>Unauthenticated enumeration against Active Directory can lead to an attacker obtaining key data such as lists of all users and computers and attributes for both (such as the description field), which can sometimes contain passwords, groups, and the domain password policy. These data points cannot be typically be used to gain access (unless a valid password is uncovered in the description field), but combined, these can be used as input for a password spraying attack. With a list of valid users and the domain password policy, an attacker can craft passwords within the bounds of the password policy and perform password spray attempts at set intervals to avoid account lockout based on the account lockout threshold in the policy.</p>
+<hr>
+<h3 id="smb-null-session">SMB Null Session</h3>
+<p>An SMB null session can be used to retrieve data from AD, such as a listing of all users and the password policy. Below is an example in practice using the <a href="https://github.com/Pennyw0rth/NetExec/">NetExec</a> tool that a penetration tester may use to demonstrate this weakness in a report. The first example shows retrieving a listing of all users in the domain.</p>
+<pre><code class="lang-shell-session">root@htb[/htb]$ netexec smb <span class="hljs-number">192.168.195.138</span> --users 
+
+SMB         <span class="hljs-number">192.168.195.138</span> <span class="hljs-number">445</span>    DC01             [*] Windows <span class="hljs-number">10</span> / Server <span class="hljs-number">2019</span> Build <span class="hljs-number">17763</span> x64 (name:DC01) (domain:wyrmwood.local) (signing:True) (SMBv1:False)
+SMB         <span class="hljs-number">192.168.195.138</span> <span class="hljs-number">445</span>    DC01             -Username-                    -Last PW Set-       -BadPW- -Description-
+SMB         <span class="hljs-number">192.168.195.138</span> <span class="hljs-number">445</span>    DC01             Administrator                 <span class="hljs-number">2025-04-28</span> <span class="hljs-number">00:54:49 0</span>       Built-in account for administering the computer/domain
+SMB         <span class="hljs-number">192.168.195.138</span> <span class="hljs-number">445</span>    DC01             Guest                         &lt;never&gt;             <span class="hljs-number">0</span>       Built-in account for guest access to the computer/domain
+SMB         <span class="hljs-number">192.168.195.138</span> <span class="hljs-number">445</span>    DC01             krbtgt                        <span class="hljs-number">2025-04-28</span> <span class="hljs-number">01:03:51 0</span>       Key Distribution Center Service Account
+SMB         <span class="hljs-number">192.168.195.138</span> <span class="hljs-number">445</span>    DC01             mrb3n                         <span class="hljs-number">2025-04-28</span> <span class="hljs-number">00:33:44 0</span>
+SMB         <span class="hljs-number">192.168.195.138</span> <span class="hljs-number">445</span>    DC01             svc-sql <span class="hljs-number">2025-04-28</span> <span class="hljs-number">01:12:00 0</span>
+SMB         <span class="hljs-number">192.168.195.138</span> <span class="hljs-number">445</span>    DC01             svc-web                       <span class="hljs-number">2025-04-28</span> <span class="hljs-number">01:12:00 0</span>
+SMB         <span class="hljs-number">192.168.195.138</span> <span class="hljs-number">445</span>    DC01             svc-backup                    <span class="hljs-number">2025-04-28</span> <span class="hljs-number">01:12:00 0</span>
+SMB         <span class="hljs-number">192.168.195.138</span> <span class="hljs-number">445</span>    DC01             <span class="hljs-number">699124850</span> <span class="hljs-number">327352224</span>           <span class="hljs-number">2025-04-28</span> <span class="hljs-number">01:16:22 0</span>
+SMB         <span class="hljs-number">192.168.195.138</span> <span class="hljs-number">445</span>    DC01             nsmith <span class="hljs-number">2025-04-28</span> <span class="hljs-number">16:07:07 0</span>
+SMB         <span class="hljs-number">192.168.195.138</span> <span class="hljs-number">445</span>    DC01             mreyes <span class="hljs-number">2025-04-28</span> <span class="hljs-number">16:07:07 0</span>
+
+&lt;SNIP&gt;
+</code></pre>
+<p>The second example shows the domain password policy being received. Together, these can be used to mount a password spraying attack. In a password spraying attack, an attacker attempts a single weak password attempt per user against a list of domain users. These password spray attempts are often spaced out by hours to reduce the risk of account lockout.</p>
+<p>Without an SMB null session, an attacker would need to resort to other means to gather a list of valid AD users, but it would likely be missing a large percentage of accounts, lowering the attack surface. Having a list of all valid users in the domain greatly increases the chances of a successful password spray, compounded by the weak password policy that allows passwords as short as seven characters and enforces no account lockout threshold. This means an attacker would not have to pause between password spraying attempts while the account lockout counter resets the bad password count and could make many spraying attempts quickly, increasing the chances of a hit.</p>
+<pre><code class="lang-shell-session">root@htb[/htb]$ netexec smb <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> --pass-pol
+
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01             [*] Windows <span class="hljs-number">10</span> / Server <span class="hljs-number">2019</span> Build <span class="hljs-number">17763</span> x64 (name:DC01) (domain:wyrmwood.local) (signing:True) (SMBv1:False)
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01             [+] Dumping password info for domain: wyrmwood
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01             Minimum password length: <span class="hljs-number">7</span>
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01             Password history length: <span class="hljs-number">24</span>
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01             Maximum password age: <span class="hljs-number">41</span> days <span class="hljs-number">23</span> hours <span class="hljs-number">53</span> minutes
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01             
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01             Password Complexity Flags: <span class="hljs-number">000001</span>
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01                 Domain Refuse Password Change: <span class="hljs-number">0</span>
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01                 Domain Password Store Cleartext: <span class="hljs-number">0</span>
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01                 Domain Password Lockout Admins: <span class="hljs-number">0</span>
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01                 Domain Password No Clear Change: <span class="hljs-number">0</span>
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01                 Domain Password No Anon Change: <span class="hljs-number">0</span>
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01                 Domain Password Complex: <span class="hljs-number">1</span>
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01             
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01             Minimum password age: <span class="hljs-number">1</span> day <span class="hljs-number">4</span> minutes 
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01             Reset Account Lockout Counter: <span class="hljs-number">30</span> minutes 
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01             Locked Account Duration: <span class="hljs-number">30</span> minutes 
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01             Account Lockout Threshold: None
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01             Forced Log off Time: <span class="hljs-keyword">Not</span> Set
+</code></pre>
+<p>Based on a hands-on review of domain controllers starting from Windows Server 2000, the following behavior was observed (Windows NT 4.0 is included for perspective):</p>
+<table>
+<thead>
+<tr>
+<th>Windows Version</th>
+<th>SMB Null Sessions Default?</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Windows NT 4.0</td>
+<td>Yes</td>
+<td>Legacy default</td>
+</tr>
+<tr>
+<td>Windows Server 2000</td>
+<td>Yes, if &quot;Permissions compatible with Pre-Windows 2000 servers&quot; was selected during Active Directory installation.</td>
+<td>Admin selects during DCPROMO</td>
+</tr>
+<tr>
+<td>Windows Server 2003</td>
+<td>Yes, if &quot;Permissions compatible with Pre-Windows 2000 servers&quot; was selected during Active Directory installation.</td>
+<td>Admin selects during DCPROMO</td>
+</tr>
+<tr>
+<td>Windows Server 2008 and beyond</td>
+<td>Not by default</td>
+<td>&quot;Let Everyone permissions apply to anonymous users&quot; GPO must be manually enabled and Pre-Win 2000 group modified if desired</td>
+</tr>
+<tr>
+<td>Domain controller upgrades (2003 -&gt; 2008 -&gt; 2012 -&gt; etc)</td>
+<td>Yes, if previously enabled. Remains in place unless removed</td>
+<td>Null session config is preserved during in-place upgrades unless cleaned up</td>
+</tr>
+</tbody>
+</table>
+<p>Due to these types of legacy configuration scenarios, this attack is highly likely to be possible in older organizations unless it has been mitigated by a previous penetration test finding or other hardening review.</p>
+<p>We have also seen this attack possible in organizations that started at a higher domain functional level. Some reasons for this may be compatibility with legacy applications or services, printer/browser service discovery, monitoring software, trust or forest migration scenarios, &quot;easier&quot; admin enumeration, and troubleshooting. Of course, this does not cover every possible scenario, but even in 2025, this finding is prevalent during penetration tests.</p>
+<p>Furthermore, if this setting was chosen once, even 20 years ago, and the domain controllers have been upgraded in place over time, it is still preserved unless manually removed. Furthermore, raising the domain functional level does not clear this setting. The only ways to remove this setting are a clean rebuild/migration to a newer version of Windows Server for a domain controller or manual remediation.</p>
+<h4 id="remediating-smb-null-sessions">Remediating SMB Null Sessions</h4>
+<p>Luckily, the fix for this issue is not difficult. The first step is to remove the <em><code>Everyone</code></em> group from the <em><code>Pre-Windows 2000 Compatible Access</code></em> group. This typically solves the issue. However, a second check that should be made would be reviewing the <code>Default Domain Controllers Policy</code> in Group Policy and ensuring that <code>Network access: Let Everyone permissions apply to anonymous users</code> is disabled. This can be done by editing the policy and browsing to <code>Computer Configuration --&gt; Windows Settings --&gt; Security Settings --&gt; Local Policies --&gt; Security Options</code>, changing the setting to disabled, and then doing a <code>gpupdate</code>.</p>
+<hr>
+<h3 id="ldap-anonymous-bind">LDAP Anonymous Bind</h3>
+<p>An LDAP anonymous bind is another method that an attacker can use to obtain information from the Active Directory domain without requiring authentication. This can be used to pull data such as a listing of users, groups, computers, and user account attributes (i.e., the description field that sometimes contains passwords), along with the domain password policy. When an anonymous base bind is allowed by a domain controller, an attacker can obtain a significant amount of information about the domain without needing to know a base object. This data can then be used to mount a password spraying attack or ASREPRoasting attack, similar to when an SMB null session is allowed.</p>
+<p>This was a default setting on Windows Server 2000 domain controllers, once again due to the <code>Pre-Windows 2000 Compatible Access</code> group. It was not the default beyond Server 2000 but can be pulled along over the years when upgrades in place are done. Below is a screenshot of the access control settings for all Users in a domain using ADSI Edit.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/306/LDAP_anon_users.png" alt="Access Control Settings for Users, Permissions tab showing various permission entries and inheritance option."></p>
+<p>There are various other reasons an organization may have configured LDAP anonymous binds, such as legacy applications/services that needed to bind anonymously to look up users or groups, intranet portals that may have used anonymous binds to allow basic user lookup (i.e., a user directory), public or semi-public directory access, ease of development, etc. During a penetration test, the tester may find an anonymous bind that only allows for querying limited information, which may be due to an intentional configuration. Regardless of the reason, in modern AD environments, LDAP anonymous binds present risk and should be disallowed unless there is a clear business reason and other mitigating controls are in place.</p>
+<p>Below is an example of how evidence of this attack may be shown in a penetration test report.</p>
+<pre><code class="lang-shell-session"><span class="hljs-attribute">root@htb[/htb]$ $ldapsearch -H ldap://192.168.195.147 -x -b "dc=wyrmwoodleg,dc=int" 
+
+# extended LDIF
+#
+# LDAPv3
+# base &lt;dc=wyrmwoodleg,dc=int&gt; with scope subtree
+# filter</span>: (objectclass=*)
+<span class="hljs-comment"># requesting: ALL</span>
+<span class="hljs-comment">#</span>
+
+<span class="hljs-comment"># wyrmwoodleg.int</span>
+<span class="hljs-attribute">dn</span>: DC=wyrmwoodleg,DC=int
+<span class="hljs-attribute">masteredBy</span>: CN=NTDS Settings,CN=AD-SRV01,CN=Servers,CN=Default-First-Site-Name
+ ,CN=Sites,CN=Configuration,DC=wyrmwoodleg,DC=int
+<span class="hljs-attribute">masteredBy</span>: CN=NTDS Settings,CN=W2K-DC01,CN=Servers,CN=Default-First-Site-Name
+ ,CN=Sites,CN=Configuration,DC=wyrmwoodleg,DC=int
+<span class="hljs-attribute">msDs-masteredBy</span>: CN=NTDS Settings,CN=AD-SRV01,CN=Servers,CN=Default-First-Site
+ -Name,CN=Sites,CN=Configuration,DC=wyrmwoodleg,DC=int
+<span class="hljs-attribute">auditingPolicy:</span>: AAE=
+<span class="hljs-attribute">creationTime</span>: 133905196100625000
+<span class="hljs-attribute">dc</span>: wyrmwoodleg
+<span class="hljs-attribute">forceLogoff</span>: -9223372036854775808
+<span class="hljs-attribute">fSMORoleOwner</span>: CN=NTDS Settings,CN=AD-SRV01,CN=Servers,CN=Default-First-Site-N
+ ame,CN=Sites,CN=Configuration,DC=wyrmwoodleg,DC=int
+<span class="hljs-attribute">gPLink</span>: [LDAP://CN={31B2F340-016D-11D2-945F-00C04FB984F9},CN=Policies,CN=Syste
+ m,DC=wyrmwoodleg,DC=int;0]
+<span class="hljs-attribute">instanceType</span>: 5
+<span class="hljs-attribute">isCriticalSystemObject</span>: TRUE
+<span class="hljs-attribute">lockOutObservationWindow</span>: -18000000000
+<span class="hljs-attribute">lockoutDuration</span>: -18000000000
+<span class="hljs-attribute">lockoutThreshold</span>: 0
+<span class="hljs-attribute">maxPwdAge</span>: -37108517437440
+<span class="hljs-attribute">minPwdAge</span>: 0
+<span class="hljs-attribute">minPwdLength</span>: 0
+<span class="hljs-attribute">modifiedCount</span>: 68719476747
+<span class="hljs-attribute">modifiedCountAtLastProm</span>: 0
+<span class="hljs-attribute">ms-DS-MachineAccountQuota</span>: 10
+<span class="hljs-attribute">nextRid</span>: 1002
+<span class="hljs-attribute">nTMixedDomain</span>: 1
+<span class="hljs-attribute">distinguishedName</span>: DC=wyrmwoodleg,DC=int
+<span class="hljs-attribute">objectCategory</span>: CN=Domain-DNS,CN=Schema,CN=Configuration,DC=wyrmwoodleg,DC=int
+<span class="hljs-attribute">objectClass</span>: top
+<span class="hljs-attribute">objectClass</span>: domain
+<span class="hljs-attribute">objectClass</span>: domainDNS
+<span class="hljs-attribute">objectGUID:</span>: ZCnSzLI5HkaxGiK/TEpzfA==
+<span class="hljs-attribute">objectSid:</span>: AQQAAAAAAAUVAAAAYycZtGAPzv18QO88
+<span class="hljs-attribute">pwdHistoryLength</span>: 1
+<span class="hljs-attribute">pwdProperties</span>: 0
+
+&lt;SNIP&gt;
+</code></pre>
+<p>Though rarer than SMB null sessions, this configuration is occasionally seen in modern AD environments.</p>
+<h4 id="remediating-ldap-anonymous-bind">Remediating LDAP Anonymous Bind</h4>
+<p>To remediate this fully, it is recommended that the <code>dsHeuristics</code> attribute value within the Directory Service object in AD be cleared. When this value is set to <code>0000002</code>, anonymous binds are possible. Clearing this value or removing the <code>2</code> disables anonymous binds at the directory level.</p>
+<p>This can be done manually by opening ADSI Edit (<code>adsiedit.msc</code>), right-clicking ADSI Edit --&gt; Connect To --&gt;, and choosing <code>Configuration</code> as the Naming Context.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/306/adsi_connection.png" alt="ADSI Edit Connection Settings dialog with options for name, path, connection point, computer, and SSL encryption."></p>
+<p>Afterwards, browse to <code>CN=Directory Service,CN=Windows NT,CN=Services,CN=Configuration,DC=yourdomain,DC=com</code>, right-click on <code>CN=Directory Service</code> and select <code>Properties</code>.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/306/directory_service.png" alt="ADSI Edit window showing directory tree on the left and details of selected item on the right."></p>
+<p>Once here in the <code>Attribute Editor</code>, scroll down to find the <code>dsHeuristics</code> attribute and clear the value.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/306/attrb_editor.png" alt="CN=Directory Service Properties, Attribute Editor tab showing attributes and values list."></p>
+<p>We should also ensure that <code>ANONYMOUS LOGON</code> does not have read access over the <code>Users</code> CN or other objects, including the domain object itself.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/306/anon_logon_read.png" alt="CN=Users Properties, Security tab showing group or user names and permissions for Anonymous Logon."></p>
+<p>This can also be remediated with a single PowerShell script as follows.</p>
+<pre><code class="lang-powershell"><span class="hljs-comment"># Obtain domain name, build LDAP path to the Directory Service object, connect as an ADSI object</span>
+$Dcname = Get-ADDomain | Select-Object -ExpandProperty DistinguishedName
+$Adsi = <span class="hljs-string">'LDAP://CN=Directory Service,CN=Windows NT,CN=Services,CN=Configuration,'</span> + $Dcname
+$AnonADSI = [ADSI]$Adsi
+
+<span class="hljs-comment"># Clear the dSHeuristics attribute </span>
+$AnonADSI.Properties[<span class="hljs-string">"dSHeuristics"</span>].Clear()
+$AnonADSI.SetInfo()
+
+<span class="hljs-comment"># Remove ANONYMOUS LOGON read access on CN=Users</span>
+$ADSI = [ADSI](<span class="hljs-string">'LDAP://CN=Users,'</span> + $Dcname)
+$Anon = <span class="hljs-keyword">New</span>-Object System.Security.Principal.NTAccount(<span class="hljs-string">"ANONYMOUS LOGON"</span>)
+$SID = $Anon.Translate([System.Security.Principal.SecurityIdentifier])
+$adRights = [System.DirectoryServices.ActiveDirectoryRights] <span class="hljs-string">"GenericRead"</span>
+$type = [System.Security.AccessControl.AccessControlType] <span class="hljs-string">"Allow"</span>
+$inheritanceType = [System.DirectoryServices.ActiveDirectorySecurityInheritance] <span class="hljs-string">"All"</span>
+$ace = <span class="hljs-keyword">New</span>-Object System.DirectoryServices.ActiveDirectoryAccessRule $SID,$adRights,$type,$inheritanceType
+$ADSI.PSBase.ObjectSecurity.RemoveAccessRule($ace) | Out-<span class="hljs-keyword">Null</span>
+$ADSI.PSBase.CommitChanges()
+</code></pre>
+<p>The script does the following:</p>
+<ol>
+<li>Obtains the domain DN, builds an LDAP path to the CN=Directory Service in the Configuration partition, and connects as an ADSI object for read/write access</li>
+<li>Clears the <code>dSHeuristics</code> attribute</li>
+<li>Removes explicit <code>GenericRead</code> permissions for <code>ANONYMOUS LOGON</code> on CN=Users to prevent anonymous LDAP binds for reading user objects from an unauthenticated standpoint</li>
+</ol>
+<hr>
+<h3 id="rid-brute-forcing">RID Brute Forcing</h3>
+<p>RID brute forcing is another technique for enumerating an AD user and group list from an unauthenticated standpoint. This attack works by default on Server 2000 and Server 2003 domain controllers <em>if</em> the <code>Everyone</code> group is added to the <code>Pre-Windows 2000 Compatible Access</code> group, which was often the case. In our tests, this is not the default behavior from Server 2008 domain controllers and onwards. However, as with the previous issues, this can appear as a legacy holdover misconfiguration if domain controllers are upgraded in place over time. The attack can be demonstrated in the following manner in a pentest report findings section, though various other tools can be used to validate the issue.</p>
+<pre><code class="lang-shell-session">root@htb[/htb]$ netexec smb <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> --rid-brute
+
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01             [*] Windows <span class="hljs-number">10</span> / Server <span class="hljs-number">2019</span> Build <span class="hljs-number">17763</span> x64 (name:DC01) (domain:wyrmwood.local) (signing:True) (SMBv1:False)
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01             <span class="hljs-number">498</span>: wyrmwood\Enterprise Read-only Domain Controllers (SidTypeGroup)
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01             <span class="hljs-number">500</span>: wyrmwood\Administrator (SidTypeUser)
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01             <span class="hljs-number">501</span>: wyrmwood\Guest (SidTypeUser)
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01             <span class="hljs-number">502</span>: wyrmwood\krbtgt (SidTypeUser)
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01             <span class="hljs-number">512</span>: wyrmwood\Domain Admins (SidTypeGroup)
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01             <span class="hljs-number">513</span>: wyrmwood\Domain Users (SidTypeGroup)
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01             <span class="hljs-number">514</span>: wyrmwood\Domain Guests (SidTypeGroup)
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01             <span class="hljs-number">515</span>: wyrmwood\Domain Computers (SidTypeGroup)
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01             <span class="hljs-number">516</span>: wyrmwood\Domain Controllers (SidTypeGroup)
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01             <span class="hljs-number">517</span>: wyrmwood\Cert Publishers (SidTypeAlias)
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01             <span class="hljs-number">518</span>: wyrmwood\Schema Admins (SidTypeGroup)
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01             <span class="hljs-number">519</span>: wyrmwood\Enterprise Admins (SidTypeGroup)
+
+&lt;SNIP&gt;
+
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01             <span class="hljs-number">1132</span>: wyrmwood\svc-sql (SidTypeUser)
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01             <span class="hljs-number">1133</span>: wyrmwood\svc-web (SidTypeUser)
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01             <span class="hljs-number">1134</span>: wyrmwood\svc-backup (SidTypeUser)
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01             <span class="hljs-number">1155</span>: wyrmwood\<span class="hljs-number">699124850</span> <span class="hljs-number">327352224</span> (SidTypeUser)
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01             <span class="hljs-number">1176</span>: wyrmwood\nsmith (SidTypeUser)
+SMB         <span class="hljs-number">192.168</span><span class="hljs-meta">.195</span><span class="hljs-meta">.138</span> <span class="hljs-number">445</span>    DC01             <span class="hljs-number">1177</span>: wyrmwood\mreyes (SidTypeUser)
+
+&lt;SNIP&gt;
+</code></pre>
+<p>This can be set at the Group Policy level in the Default Domain Controllers policy, specifically if <code>Network access: Allow anonymous SID/name translation</code> is enabled.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/306/GPO_sid_translate.png" alt="Group Policy Management Editor showing Security Options with various policy settings, including &#39;Network access: Allow anonymous SID/Name translation&#39; enabled."></p>
+<p>This setting allows anonymous users to request Security Identifier (SID) attributes for users and groups in the domain. In the attack above, SIDs are crafted by brute-forcing RID values starting at 500 (Administrator) and upwards. For example:</p>
+<pre><code>S<span class="hljs-number">-1</span><span class="hljs-number">-5</span><span class="hljs-number">-21</span>-&lt;domain-ID&gt;<span class="hljs-number">-500</span>
+S<span class="hljs-number">-1</span><span class="hljs-number">-5</span><span class="hljs-number">-21</span>-&lt;domain-ID&gt;<span class="hljs-number">-501</span>
+S<span class="hljs-number">-1</span><span class="hljs-number">-5</span><span class="hljs-number">-21</span>-&lt;domain-ID&gt;<span class="hljs-number">-1000</span>
+S<span class="hljs-number">-1</span><span class="hljs-number">-5</span><span class="hljs-number">-21</span>-&lt;domain-ID&gt;<span class="hljs-number">-1001</span>
+</code></pre><p>Each guessed SID is then resolved using <a href="https://github.com/fortra/impacket/blob/master/examples/lookupsid.py">LookupSid</a>. If the SID is valid, the username or group name is returned.</p>
+<h4 id="remediating-rid-brute-forcing">Remediating RID Brute Forcing</h4>
+<p>This can be remediated by either setting <code>Network access: Allow anonymous SID/name translation</code> to <code>disabled</code> in the Default Domain Controllers policy in the Group Policy editor or by setting the registry key <code>HKLM\SYSTEM\CurrentControlSet\Control\Lsa\RestrictAnonymous</code> to <code>1</code> or <code>2</code>. Ideally, this should be remediated via Group Policy to ensure the setting is applied to all domain controllers in the forest.</p>
+<hr>
+<h3 id="recap">Recap</h3>
+<p>We&#39;ve covered three legacy methods for enumerating data, such as a list of valid domain users and the password policy, among other data, that can be used as inputs for a password spraying attack. On their own, this is just enumeration data, but it is a first step for an attacker to gain a foothold if other issues exist, such as a weak password policy/legacy passwords that are set outside of the policy (i.e., accounts with passwords that never expire that had their password set years ago). Furthermore, if sensitive data is stored within user or computer attributes, such as passwords, this data could potentially be used to gain a foothold. Lastly, the user list could be used to perform an ASREPRoasting attack, which we will cover later in this module.</p>
+<p>It is worth checking all domain controllers in the forest to see if any of these legacy settings exist and remediating them to tighten things up if there is no valid business reason for them to be in place.</p>
+<p>In the next section, we will cover several common weaknesses related to network traffic response spoofing that can provide a foothold, starting from an unauthenticated standpoint. Some of these attacks have been around for over a decade but still plague Active Directory networks today.</p>
+<hr>
+<h2 id="initial-access-weaknesses-response-spoofing-attacks">Initial Access Weaknesses - Response Spoofing Attacks</h2>
+<hr>
+<p>Now that we&#39;ve covered methods used by penetration testers for performing unauthenticated enumeration, we&#39;ll dive into common ways of obtaining initial access during an internal penetration test. These attacks leverage built-in network protocols/settings enabled by default unless hardened against.</p>
+<hr>
+<h3 id="llmnr-nbt-ns-response-spoofing">LLMNR/NBT-NS Response Spoofing</h3>
+<p>LLMNR &amp; NBT-NS (NetBIOS) spoofing/poisoning are well-known internal network attacks that still work to this day in many environments. LLMNR stands for Link-Local Multicast Name Resolution, while NBT-NS stands for the NetBIOS Name Service, NetBIOS being short for Network Basic Input/Output System. These legacy protocols are enabled by default and, like with many other issues, can remain in the network even after domain controller/domain functional level upgrades.</p>
+<p>The LLMNR protocol allows hosts to perform name resolution with hosts on the same internal network segment without needing DNS. When a DNS name server request fails, Windows systems will attempt fallback name resolution using LLMNR and NBT-NS if these protocols have not been disabled. The primary issue with LLMNR and NBT-NS broadcasting within an internal network is that if a DNS name fails to resolve, the client (system) will send out an unauthenticated UDP broadcast to the entire local network segment, checking to see if any other system on the segment has the name that it&#39;s searching for. Since this broadcast process is performed unauthenticated to the entire network, any machine on the network can respond in place of the requested machine.</p>
+<p>An attacker can position themselves on the network, listening for LLMNR/NBT-NS broadcasts using a tool such as <a href="https://github.com/lgandx/Responder">Responder</a> and spoof responses as the machine the client is attempting to authenticate to. During this authentication process, the client machine will send out an NTLMv2 password hash (sometimes NTLMv1 if this legacy protocol is enabled in the network), which is then captured on the attacker machine for offline password cracking or &quot;relaying&quot; attacks, which will be covered later in this section.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/306/LLMNR_response_spoofing_example.png" alt="Diagram of LLMNR/NBT-NS Response Spoofing: Client requests file server, DNS doesn&#39;t recognize host, attacker responds as file server, client sends credentials."></p>
+<p>In a penetration test report, the evidence for this finding may look as follows.</p>
+<pre><code class="lang-shell-session">root@htb<span class="hljs-string">[/htb]</span>$ sudo responder -I ens33
+                                        __
+ .----.-----.-----.-----.-----.-----.--|  |.-----.----.
+ |   _|  -__|__ --|  _  |  _  |     |  _  ||  -__|   _|
+ |__| |_____|_____|   __|_____|__|__|_____||_____|__|
+ |__|
+
+ NBT-NS, LLMNR &amp; MDNS Responder <span class="hljs-number">3.1.3.0</span>
+
+ To support this project:
+ Patreon -&gt; https://www.patreon.com/PythonResponder
+ Paypal  -&gt; https://paypal.me/PythonResponder
+
+ Author: Laurent Gaffie (laurent.gaffie@gmail.com)
+ To kill this script hit CTRL-C
+
+
+<span class="hljs-string">[+]</span> Poisoners:
+ LLMNR                      <span class="hljs-string">[ON]</span>
+ NBT-NS                     <span class="hljs-string">[ON]</span>
+ MDNS                       <span class="hljs-string">[ON]</span>
+ DNS                        <span class="hljs-string">[ON]</span>
+ DHCP                       <span class="hljs-string">[OFF]</span>
+
+<span class="hljs-string">[+]</span> Servers:
+ HTTP server                <span class="hljs-string">[ON]</span>
+ HTTPS server               <span class="hljs-string">[ON]</span>
+ WPAD proxy                 <span class="hljs-string">[OFF]</span>
+ Auth proxy                 <span class="hljs-string">[OFF]</span>
+ SMB server                 <span class="hljs-string">[ON]</span>
+ Kerberos server            <span class="hljs-string">[ON]</span>
+ SQL server                 <span class="hljs-string">[ON]</span>
+ FTP server                 <span class="hljs-string">[ON]</span>
+ IMAP server                <span class="hljs-string">[ON]</span>
+ POP3 server                <span class="hljs-string">[ON]</span>
+ SMTP server                <span class="hljs-string">[ON]</span>
+ DNS server                 <span class="hljs-string">[ON]</span>
+ LDAP server                <span class="hljs-string">[ON]</span>
+ RDP server                 <span class="hljs-string">[ON]</span>
+ DCE-RPC server             <span class="hljs-string">[ON]</span>
+ WinRM server               <span class="hljs-string">[ON]</span>
+
+<span class="hljs-string">[+]</span> HTTP Options:
+ Always serving EXE         <span class="hljs-string">[OFF]</span>
+ Serving EXE                <span class="hljs-string">[OFF]</span>
+ Serving HTML               <span class="hljs-string">[OFF]</span>
+ Upstream Proxy             <span class="hljs-string">[OFF]</span>
+
+<span class="hljs-string">[+]</span> Poisoning Options:
+ Analyze Mode               <span class="hljs-string">[OFF]</span>
+ Force WPAD auth            <span class="hljs-string">[OFF]</span>
+ Force Basic Auth           <span class="hljs-string">[OFF]</span>
+ Force LM downgrade         <span class="hljs-string">[OFF]</span>
+ Force ESS downgrade        <span class="hljs-string">[OFF]</span>
+
+<span class="hljs-string">[+]</span> Generic Options:
+ Responder NIC              <span class="hljs-string">[ens33]</span>
+ Responder IP               <span class="hljs-string">[192.168.1.134]</span>
+ Responder IPv6             <span class="hljs-string">[fe80::cb31:6963:2fbc:d1f3]</span>
+ Challenge set              <span class="hljs-string">[random]</span>
+ Don't Respond To Names     <span class="hljs-string">['ISATAP']</span>
+
+<span class="hljs-string">[+]</span> Current Session Variables:
+ Responder Machine Name     <span class="hljs-string">[WIN-AMP9N4OIGKS]</span>
+ Responder Domain Name      <span class="hljs-string">[D96G.LOCAL]</span>
+ Responder DCE-RPC Port     <span class="hljs-string">[48207]</span>
+
+<span class="hljs-string">[+]</span> Listening for events...
+
+<span class="hljs-string">[*]</span> <span class="hljs-string">[NBT-NS]</span> Poisoned answer sent to <span class="hljs-number">192.168.1.69</span> for name wyrmwood (service: File Server)
+<span class="hljs-string">[FINGER]</span> OS Version     : Windows <span class="hljs-number">10</span> Pro <span class="hljs-number">18362</span>
+<span class="hljs-string">[FINGER]</span> Client Version : Windows <span class="hljs-number">10</span> Pro <span class="hljs-number">6</span>.<span class="hljs-number">3</span>
+<span class="hljs-string">[*]</span> <span class="hljs-string">[MDNS]</span> Poisoned answer sent to <span class="hljs-number">192.168.1.69</span>    for name wyrmwood.local
+<span class="hljs-string">[*]</span> <span class="hljs-string">[LLMNR]</span>  Poisoned answer sent to <span class="hljs-number">192.168.1.69</span> for name wyrmwood
+<span class="hljs-string">[FINGER]</span> OS Version     : Windows <span class="hljs-number">10</span> Pro <span class="hljs-number">18362</span>
+<span class="hljs-string">[FINGER]</span> Client Version : Windows <span class="hljs-number">10</span> Pro <span class="hljs-number">6</span>.<span class="hljs-number">3</span>
+<span class="hljs-string">[SMB]</span> NTLMv2-SSP Client   : <span class="hljs-number">192.168.1.138</span>
+<span class="hljs-string">[SMB]</span> NTLMv2-SSP Username : wyrmwood.local\svc_sccm
+<span class="hljs-string">[SMB]</span> NTLMv2-SSP Hash     : svc_sccm::wyrmwood.local:7ba23471329e8cbd:38BDFB73948471897F3B867DEF28209C:0101000000000000007862BD80BEDB013BE7C8B7D9D51DCD0000000002000800440039003600470001001E00570049004E002D0041004D00500039004E0034004F00490047004B00530004003400570049004E002D0041004D00500039004E0034004F00490047004B0053002E0044003900360047002E004C004F00430041004C000300140044003900360047002E004C004F00430041004C000500140044003900360047002E004C004F00430041004C0007000800007862BD80BEDB0106000400020000000800300030000000000000000100000000200000580714224AEFF00DF8CE138F802243B6D34D4DD751A4F63B8C7433D8AE7D65300A001000000000000000000000000000000000000900280063006900660073002F003100390032002E003100360038002E003100390035002E00310033003400000000000000000000000000
+<span class="hljs-string">[*]</span> Skipping previously captured hash for wyrmwood.local\svc_sccm
+
+&lt;SNIP&gt;
+</code></pre>
+<p>This password hash could then be subjected to an offline password cracking attack in an attempt to recover the cleartext password. If successful, the recovered password can be used to compute the corresponding NTLM hash, which enables pass-the-hash (PtH) attacks. Alternatively, the captured NTLMv2 hash may be used directly in a relay attack, potentially providing unauthorized access to other network resources without needing to recover the password.</p>
+<p>There are various abuse cases as to why this attack is possible. Below are a few examples:</p>
+<table>
+<thead>
+<tr>
+<th>Abuse Case</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>User mistyping</td>
+<td>A user mistypes a UNC path or hostname, e.g., <code>\\fileservr</code> and DNS fails with LLMNR/NBT-NS broadcast enabled, rogue Responder server answers, and NTLMv2 hash is captured.</td>
+</tr>
+<tr>
+<td>Windows Proxy Automatic Detection (WPAD)</td>
+<td>By default, Windows attempts to discover proxies using WPAD (i.e., wpad.wyrmwood.local). If no proxy host is defined in DNS (very common), the client will attempt the request for WPAD via LLMNR/NBT-NS. Responder answers, resulting in hash capture.</td>
+</tr>
+<tr>
+<td>Chrome browser</td>
+<td>When a search term is typed into the Chrome search bar, the string will be treated as a search term and simultaneously checked for hostname resolution. Chrome also attempts to resolve randomized hostnames at startup, which will activate name resolution, often resulting in password hash capture.</td>
+</tr>
+<tr>
+<td>Misconfigured applications/Services</td>
+<td>Certain applications perform automatic network discovery or queries for resources (i.e., printers or file shares). If the proper DNS records do not exist, there will be a fallback to LLMNR/NBT-NS if enabled.</td>
+</tr>
+<tr>
+<td>Unmanaged/legacy devices</td>
+<td>Unmanaged or legacy devices may trigger fallback name resolution mechanisms, exposing them to spoofed replies and subsequent credential leakage.</td>
+</tr>
+<tr>
+<td>DNS server misconfiguration</td>
+<td>If there is a DNS misconfiguration on either the client side or with the DNS server, there may be problems with name resolution, which could lead to successful poisoning attacks via these protocols.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="remediating-llmnr-nbt-ns-response-spoofing">Remediating LLMNR/NBT-NS Response Spoofing</h4>
+<p>LLMNR &amp; NBT-NS response spoofing attacks are relatively easy to remediate by disabling both protocols. If only LLMNR is disabled, then Windows will failover to NBT-NS for name resolution, so the attack will still be possible.</p>
+<p><strong>LLMNR</strong></p>
+<p>LLMNR can be disabled via Group Policy. The ideal way to do this is by creating a new GPO instead of disabling it via the Default Domain Policy. Creating a dedicated GPO such as <code>Disable LLMNR</code> will make it more easily auditable, easier to target specific OUs, easier to roll back, and avoids editing the domain-level baseline policy.</p>
+<p>To disable this, we need to perform the following steps after creating a new GPO: <code>Computer Configuration → Administrative Templates → Network → DNS Client → turn off multicast name resolution</code>. First, right-click on <code>Group Policy Objects</code> and select <code>New</code>.</p>
+<p>Next, give the GPO a name; we&#39;ll call it <code>Disable LLMNR</code>.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/306/create_llmnr_GPO.png" alt="Group Policy Management window showing Group Policy Objects in wyrmwood.local, with a new GPO named &#39;Disable LLMNR&#39; being created."></p>
+<p>Next, right-click on the GPO and click <code>edit</code>. Browse to the setting <code>Turn off multicast name resolution</code>, click <code>Enabled</code> and then <code>Apply</code>.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/306/disable_multicast_gpo.png" alt="Group Policy Management Editor showing &#39;Turn off multicast name resolution&#39; setting with options for Not Configured, Enabled, and Disabled."></p>
+<p>Next, we need to link the GPO to specific OUs where we want it applied. Our lab has <code>Workstations</code> and <code>Servers</code> under the <code>CORP</code> OU.</p>
+<p>First, we&#39;ll right-click on the <code>CORP</code> OU in Group Policy Management and select <code>Create a GPO in this domain, and Link it here</code>. In a non-lab environment, we would select an OU such as <code>Workstations</code> or <code>Servers</code>, etc. Right-click on <code>Workstations</code> and select <code>Link an existing GPO</code>.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/306/link_gpo_llmnr.png" alt="Group Policy Management window showing Workstations with a dialog to select GPO, including &#39;Disable LLMNR&#39; option."></p>
+<p>Now that it&#39;s linked, we can wait for Group Policy to update, which by default is 90 minutes with an offset of 30 minutes, to ensure every computer in the domain isn&#39;t attempting to update simultaneously. Alternatively, we could force a Group Policy update from the command line using <code>gpupdate /force</code> or by right-clicking on the OU and selecting <code>Group Policy Update</code>.</p>
+<p><strong>NBT-NS</strong></p>
+<p>Unfortunately, unlike with LLMNR, there is no specific GPO setting to apply globally, so it must be done at the host level. There are workarounds to make the process less manual, but we&#39;ll first cover the step-by-step manual process to understand the semi-automated process better. NBT-NS can be disabled via Network Connections settings on each individual host. Specifically, this can be disabled via the Properties menu for the network adapter in question. First, browse to Network &amp; Internet settings, then click <code>Change adapter options</code>. Right-click on the adapter and select <code>Properties</code>.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/306/edit_adapter.png" alt="Context menu for Ethernet0 network adapter showing options: Disable, Status, Diagnose, Bridge Connections, Create Shortcut, Delete, Rename, Properties."></p>
+<p>Next, select <code>Internet Protocol Version 4 (TCP/IPv4)</code> and click <code>Properties</code>.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/306/ethernet_properties.png" alt="Ethernet0 Properties, Networking tab showing connection items like Internet Protocol Version 4 (TCP/IPv4) and configuration options."></p>
+<p>Next, click <code>Advanced</code> and select the <code>WINS</code> tab.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/306/advanced_tcp_ip.png" alt="Advanced TCP/IP Settings, WINS tab showing options for WINS addresses, LMHOSTS lookup, and NetBIOS settings."></p>
+<p>We can select <code>Disable NetBIOS over TCP/IP</code> from here to turn this setting off.</p>
+<p>Since this is a Registry setting on each individual host and it is not practical to edit this setting manually on potentially 100s of hosts, we can use a PowerShell script along with a GPO to run a <code>Startup</code> script to get this done. The Registry key that controls this setting is located at <code>HKLM:SYSTEM\CurrentControlSet\services\NetBT\Parameters\Interfaces</code> and by default is set to <code>0</code> or <code>Default</code> as we saw in the <code>WINS</code> tab.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/306/registry_nbt.png" alt="Registry Editor showing path to NetBT Interfaces with entries for NameServerList and NetbiosOptions."></p>
+<p>This can also be queried using PowerShell.</p>
+<pre><code class="lang-powershell-session">PS C:<span class="hljs-symbol">\h</span>tb&gt; Get-ChildItem HKLM:SYSTEM<span class="hljs-symbol">\C</span>urrentControlSet<span class="hljs-symbol">\s</span>ervices<span class="hljs-symbol">\N</span>etBT<span class="hljs-symbol">\P</span>arameters<span class="hljs-symbol">\I</span>nterfaces
+
+
+ Hive: HKEY_LOCAL_MACHINE<span class="hljs-symbol">\S</span>YSTEM<span class="hljs-symbol">\C</span>urrentControlSet<span class="hljs-symbol">\s</span>ervices<span class="hljs-symbol">\N</span>etBT<span class="hljs-symbol">\P</span>arameters<span class="hljs-symbol">\I</span>nterfaces
+
+
+Name                           Property                                                                                                                   
+----                           --------                                                                                                                   
+Tcpip_{1381f985-1b89-4519-aa96 NameServerList : {}                                                                                                        
+-eb4e66f40439}                 NetbiosOptions : 2                                                                                                         
+Tcpip_{84209c4d-4820-4d85-862a NameServerList : {}                                                                                                        
+-dddba627e95f}                 NetbiosOptions : 0
+</code></pre>
+<p>To disable this via GPO, we&#39;ll use the following PowerShell snippet.</p>
+<pre><code class="lang-powershell-session"><span class="hljs-variable">$regkey</span> = <span class="hljs-string">"HKLM:SYSTEM\CurrentControlSet\services\NetBT\Parameters\Interfaces"</span>
+<span class="hljs-built_in">Get-ChildItem</span> <span class="hljs-variable">$regkey</span> |<span class="hljs-keyword">foreach</span> { <span class="hljs-built_in">Set-ItemProperty</span> -Path <span class="hljs-string">"<span class="hljs-variable">$regkey</span>\$(<span class="hljs-variable">$_</span>.pschildname)"</span> -Name NetbiosOptions -Value <span class="hljs-number">2</span> -Verbose}
+</code></pre>
+<p>The script should be saved to a centralized location, such as the <code>scripts</code> directory on the domain controller SYSVOL share. This is available at <code>C:\Windows\SYSVOL\sysvol\wyrmwood.local\scripts</code> or <code>\\wyrmwood.local\SYSVOL\wyrmwood.local\scripts</code> (replace <code>wyrmwood.local</code> with your corresponding domain name).</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/306/scripts_dir.png" alt="File Explorer showing scripts folder with a PowerShell script named &#39;Disable-NetBIOS&#39;."></p>
+<p>Next, open Group Policy Management, right-click <code>Group Policy Objects</code>, and create a new GPO. We&#39;ll call it <code>Disable NetBIOS</code>.</p>
+<p>Edit the GPO and browse to <code>Computer Configuration &gt; Policies &gt; Windows Settings &gt; Scripts (Startup/Shutdown) &gt; Startup</code>.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/306/startup_props.png" alt="Group Policy Management Editor showing Startup Properties for &#39;Disable NetBIOS&#39; with options to add, edit, or remove scripts."></p>
+<p>Select the <code>PowerShell Scripts</code> tab, click <code>Add,</code> and browse to the script&#39;s network location, in our case, the <code>scripts</code> directory on the domain controller&#39;s SYSVOL share.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/306/startup_pwsh.png" alt="Startup Properties window showing PowerShell script for &#39;Disable NetBIOS&#39; with options to add, edit, or remove scripts."></p>
+<p>Click <code>Apply</code> and then <code>OK</code> to exit.  Next, we&#39;ll link this GPO to the <code>Servers</code> OU, and then we need to reboot any hosts this is applied to for it to take effect.</p>
+<p>We can then use some PowerShell to remotely confirm that NetBIOS was indeed disabled.</p>
+<pre><code class="lang-powershell-session">PS <span class="hljs-string">C:</span>\htb&gt; Invoke-Command -ComputerName <span class="hljs-string">"MS01"</span> -ScriptBlock {
+ Get-ChildItem -Path <span class="hljs-string">"HKLM:\SYSTEM\CurrentControlSet\Services\NetBT\Parameters\Interfaces"</span> |
+ ForEach-Object {
+ $netbios = Get-ItemProperty -Path $_.PSPath -Name NetbiosOptions -ErrorAction SilentlyContinue
+ [PSCustomObject]@{
+ Adapter = $_.PSChildName
+ NetbiosOptions = $netbios.NetbiosOptions
+ }
+ }
+}
+
+
+
+<span class="hljs-string">Adapter        :</span> Tcpip_{<span class="hljs-number">82</span>a14227-c15d<span class="hljs-number">-43</span>ca<span class="hljs-number">-9</span>d2b<span class="hljs-number">-1</span>a4fcc9cd36a}
+<span class="hljs-string">NetbiosOptions :</span> <span class="hljs-number">2</span>
+<span class="hljs-string">PSComputerName :</span> MS01
+<span class="hljs-string">RunspaceId     :</span> <span class="hljs-number">5</span>c06819e-b807<span class="hljs-number">-46</span>bb<span class="hljs-number">-9</span>d6b-b8660f8fc1ed
+
+<span class="hljs-string">Adapter        :</span> Tcpip_{b3db069a-c44d<span class="hljs-number">-490</span>e-b74a-b4f3839ce7a5}
+<span class="hljs-string">NetbiosOptions :</span> <span class="hljs-number">2</span>
+<span class="hljs-string">PSComputerName :</span> MS01
+<span class="hljs-string">RunspaceId     :</span> <span class="hljs-number">5</span>c06819e-b807<span class="hljs-number">-46</span>bb<span class="hljs-number">-9</span>d6b-b8660f8fc1e
+</code></pre>
+<p>The &#39;2&#39; for <code>NetbiosOptions</code> shows that this was applied successfully. A script could also be written to either check against a list of all computers in AD (i.e., <code>$computers = Get-ADComputer -Filter * | Select-Object -ExpandProperty Name</code>) or from a file containing each hostname (i.e., <code>$computers = Get-Content -Path .\computers.txt</code>), but that exercise will be left up to the reader.</p>
+<p>With LLMNR and NBT-NS now disabled in the network, we are now protected against two of the most common network response spoofing attacks that can lead to a quick and easy foothold.</p>
+<hr>
+<h3 id="mdns-response-spoofing">mDNS Response Spoofing</h3>
+<p>Another candidate for response spoofing attacks is Multicast DNS (mDNS), which is often overlooked. The classic penetration testing finding for successful response spoofing is typically along the lines of <code>LLMNR/NBT-NS Response Spoofing</code>. A client will receive the report, remediate both issues and the penetration tester will validate the fix. However, the following year, the tester is <em>still</em> able to perform a response spoofing attack to obtain password hashes or perform an NTLM relay attack. mDNS was introduced with Windows 10 1703. Apple developed the protocol as a means for performing local network name and service discovery without the need for a DNS server or user interaction. This is how Apple was able to make setup for AirPlay2- based services easy using the Bonjour service. mDNS is used by a myriad of devices and services by Microsoft, Google, Apple, Amazon, etc. It is used with smart TVs, printers, set-top boxes, wireless speakers, wireless screen mirroring, etc, via UDP port 5353. It is everywhere. Fire up Wireshark in your home network, and if you have any type of smart device, you will likely see it in action.</p>
+<h4 id="remediating-mdns-response-spoofing">Remediating mDNS Response Spoofing</h4>
+<p>While there is a Registry value for disabling mDNS in the Windows DNS client resolver, it does not fully disable mDNS in a network because any operating system could have multiple mDNS resolvers running simultaneously. Since mDNS uses UDP port 5353 and not TCP, it is possible to have various services listening on that port simultaneously. If you run a command like the one below on your own system, you will likely see multiple different processes using UDP port 5353.</p>
+<pre><code class="lang-powershell">Get-NetUDPEndpoint -LocalPort <span class="hljs-number">5353</span> | <span class="hljs-built_in">Select-Object</span> LocalAddress,LocalPort,OwningProcess,@{ Name=<span class="hljs-string">"ProcessName"</span>; Expression={((<span class="hljs-built_in">Get-Process</span> -Id <span class="hljs-variable">$_</span>.OwningProcess).Name )} }
+</code></pre>
+<p>It is possible to disable Windows&#39; built-in mDNS resolver that is located within the <code>Dnscache</code> service (inside svchost.exe), which handles <code>.local</code> name resolution via Group Policy; this only puts a bandaid on the problem if other services are running such as Chrome, TeamViewer, Zoom, etc. These third-party apps, which are listening and broadcasting on UDP port 5353, implement their own mDNS stacks for discovering peers, sharing content, supporting cross-device syncing or casting, etc. So even if the Windows built-in mDNS resolver is disabled, stopping Windows from asking for mDNS, other applications in the network may still send mDNS queries or accept mDNS replies. If any of them perform <code>.local</code> lookups and accept spoofed replies, they are still vulnerable (i.e., Chrome).</p>
+<p>Microsoft&#39;s official recommendation for locking down mDNS is to use the Windows Defender Firewall. This already existing tool can help organizations mitigate this issue in various ways. The options include:</p>
+<ul>
+<li>Disable inbound mDNS in Windows Defender Firewall for ALL profiles (Public, Private, Domain). This will prevent all inbound mDNS traffic but could cause issues for remote workers</li>
+<li>Disable mDNS just within the Domain profile, which will not affect remote workers but will block mDNS within the corporate network</li>
+<li>Disable mDNS in Windows Defender Firewall for outbound traffic. This is only necessary where high security is required, as blocking inbound mDNS traffic is typically sufficient</li>
+</ul>
+<p>Unlike LLMNR/NBT-NS, mDNS is often a necessary evil for devices and services to function correctly. It is used by so many types of devices that fully blocking inbound mDNS traffic is likely not feasible for every single organization in the modern computing environment. Workers often need tools like Chrome, TeamViewer, screencasting software, etc, to do their jobs. While some organizations already use application controls to block most or all these for security reasons and can get away with blocking mDNS fully, for others, it would harm productivity.</p>
+<p>A trade-off can be using some combination of Windows Defender Firewall profiles, application whitelisting, and mitigations that would make a response spoofing attack difficult or near impossible to achieve a result. This would include enabling SMB Signing, LDAP Signing, LDAP Channel Binding, a strong password policy, network segmentation, network access controls that would make it difficult to get a rogue device on the network, least privilege, ensuring privileged users (i.e., Domain Admins) have separate accounts and are not logging into workstations with their privilege account, robust monitoring and alerting, among others.</p>
+<p>Security controls have to be applied smartly, and while some organizations will function just fine with a &quot;just shut it off&quot; policy, many need to find a trade-off between security and productivity. Understanding what is being used on your network and maintaining a list of approved applications/services is essential. The risks of mDNS response spoofing are real, but how to mitigate them depends on the organization. It is not as cut and dry as other issues and will likely require some investigation and testing of the proper defense-in-depth strategy appropriate to your operating environment.</p>
+<p>Even in well-secured internal networks where LLMNR, NBT-NS, and mDNS have been mitigated, a lesser-known but increasingly relevant attack surface remains: DNS spoofing over IPv6.</p>
+<hr>
+<h3 id="dns-spoofing-over-ipv6-x20-">DNS Spoofing over IPv6 &#x20;</h3>
+<p>IPv6 is enabled by default in Windows environments and prioritized over IPv4 but is typically not used or configured. Whenever a Windows computer starts up or is connected to the network, it broadcasts a DHCPv6 request asking for an IPv6 address. Like LLMNR, DHCPv6 is a multicast protocol, so an attacker positioned on the same network segment can respond to these DHCPv6 queries via an attack called DHCPv6 spoofing. The attacker&#39;s host provides clients with a specific IP configuration, which includes the address of a rogue DNS server. Once this is done, the attacker can then perform DNS spoofing by forcing each client to query the attacker&#39;s rogue DNS server for every DNS resolution. The attacker host then redirects these clients to other rogue servers (such as ntlmrelayx) that are then used to either capture NTLMv1/NTLMv2 password hashes or relay these authentication attempts to SMB, LDAP, etc.</p>
+<p>It is not uncommon to encounter an environment that is hardened against LLMNR, NBT-NS, and mDNS response spoofing attacks, but a penetration tester is still able to obtain password hashes or perform NTLM relaying through a DNS spoofing attack over IPv6. Again, this is possible because Windows systems typically prefer IPv6 DNS, which is enabled by default.</p>
+<h4 id="remediating-dns-spoofing-over-ipv6">Remediating DNS Spoofing over IPv6</h4>
+<p>IPv6 can be disabled by modifying the following Registry key: <code>HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters\</code> and setting <code>DisabledComponents</code> to the value <code>0xFF</code> (or 255 in decimal). This is Microsoft&#39;s officially supported method for disabling IPv6 components on all interfaces (both LAN and tunnel adapters). Let&#39;s dig into it. We can use a bit of PowerShell to check whether this is partially, fully, or not remediated.</p>
+<pre><code class="lang-powershell-session">PS C:\htb&gt; <span class="hljs-variable">$regPath</span> = <span class="hljs-string">"HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters"</span>
+<span class="hljs-variable">$key</span> = <span class="hljs-string">"DisabledComponents"</span>
+
+<span class="hljs-keyword">try</span> {
+<span class="hljs-variable">$val</span> = <span class="hljs-built_in">Get-ItemProperty</span> -Path <span class="hljs-variable">$regPath</span> -Name <span class="hljs-variable">$key</span> -ErrorAction Stop
+<span class="hljs-keyword">if</span> (<span class="hljs-variable">$val</span>.<span class="hljs-variable">$key</span> <span class="hljs-nomarkup">-eq</span> <span class="hljs-number">0</span>xFF) {
+<span class="hljs-built_in">Write-Host</span> <span class="hljs-string">"✅ IPv6 is fully disabled (DisabledComponents = 0xFF)"</span> -ForegroundColor Green
+} <span class="hljs-keyword">else</span> {
+<span class="hljs-built_in">Write-Host</span> <span class="hljs-string">"⚠️ IPv6 is partially enabled (DisabledComponents = $(<span class="hljs-variable">$val</span>.<span class="hljs-variable">$key</span>))"</span> -ForegroundColor Yellow
+}
+} <span class="hljs-keyword">catch</span> {
+<span class="hljs-built_in">Write-Host</span> <span class="hljs-string">"⚠️ DisabledComponents not set — IPv6 is likely fully enabled"</span> -ForegroundColor Yellow
+}
+
+⚠️ DisabledComponents not set — IPv6 is likely fully enabled
+</code></pre>
+<p>Next, we&#39;ll modify this Registry key to disable IPv6.</p>
+<pre><code class="lang-powershell-session">PS <span class="hljs-keyword">C</span>:\htb&gt; <span class="hljs-keyword">Set</span>-ItemProperty -<span class="hljs-keyword">Path</span> <span class="hljs-string">"HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters"</span> -Name <span class="hljs-string">"DisabledComponents"</span> -<span class="hljs-keyword">Value</span> <span class="hljs-number">0xFF</span>
+ <span class="hljs-keyword">Write</span>-Host <span class="hljs-string">"$env:COMPUTERNAME - IPv6 disabled."</span>
+
+MS01 - IPv6 disabled.
+</code></pre>
+<p>And we&#39;ll check our work once again to confirm it was disabled.</p>
+<pre><code class="lang-powershell-session">PS C:\htb&gt; <span class="hljs-variable">$regPath</span> = <span class="hljs-string">"HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters"</span>
+<span class="hljs-variable">$key</span> = <span class="hljs-string">"DisabledComponents"</span>
+
+<span class="hljs-keyword">try</span> {
+ <span class="hljs-variable">$val</span> = <span class="hljs-built_in">Get-ItemProperty</span> -Path <span class="hljs-variable">$regPath</span> -Name <span class="hljs-variable">$key</span> -ErrorAction Stop
+ <span class="hljs-keyword">if</span> (<span class="hljs-variable">$val</span>.<span class="hljs-variable">$key</span> <span class="hljs-nomarkup">-eq</span> <span class="hljs-number">0</span>xFF) {
+ <span class="hljs-built_in">Write-Host</span> <span class="hljs-string">"✅ IPv6 is fully disabled (DisabledComponents = 0xFF)"</span> -ForegroundColor Green
+ } <span class="hljs-keyword">else</span> {
+ <span class="hljs-built_in">Write-Host</span> <span class="hljs-string">"⚠️ IPv6 is partially enabled (DisabledComponents = $(<span class="hljs-variable">$val</span>.<span class="hljs-variable">$key</span>))"</span> -ForegroundColor Yellow
+ }
+} <span class="hljs-keyword">catch</span> {
+ <span class="hljs-built_in">Write-Host</span> <span class="hljs-string">"⚠️ DisabledComponents not set — IPv6 is likely fully enabled"</span> -ForegroundColor Yellow
+}
+
+✅ IPv6 is fully disabled (DisabledComponents = <span class="hljs-number">0</span>xFF)
+</code></pre>
+<p>This can be run against multiple hosts remotely using the <a href="https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/invoke-command?view=powershell-7.5">Invoke-Command</a> cmdlet. It can also be done through Group Policy, but not natively, as there is no built-in GPO setting for disabling IPv6 via the <code>DisabledComponents</code> Registry value. This may have been intentional to discourage disabling IPv6, but it&#39;s an additional hardening step worth taking in organizations where it is not necessary for daily operations. We would need to use Group Policy Preferences to do this via Group Policy. First, create a new GPO and then browse to <code>Computer Configuration</code> --&gt; <code>Preferences</code> --&gt; <code>Windows Settings</code> --&gt; <code>Registry</code>.</p>
+<p>Once here, right-click <code>New</code> --&gt; <code>Registry Item</code> and enter the following:</p>
+<p><strong>Action</strong>: Update\
+<strong>Hive</strong>: <code>HKEY_LOCAL_MACHINE</code>\
+<strong>Key Path</strong>: <code>SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters</code>\
+<strong>Value Name</strong>: <code>DisabledComponents</code>\
+<strong>Value Type</strong>: <code>REG_DWORD</code>\
+<strong>Value Data</strong>: <code>255</code> (decimal) or <code>0xFF</code> (hex)</p>
+<p>Click <code>apply</code> and then <code>ok</code> to close, apply the policy to necessary OUs, and then reboot associated systems for the change to take effect.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/306/reg_gpo.png" alt="Group Policy Management Editor showing New Registry Properties for updating DisabledComponents with value data 255 in HKEY\_LOCAL\_MACHINE."></p>
+<p>Officially, Microsoft does not recommend disabling IPv6 or IPv6 components, as stated <a href="https://learn.microsoft.com/en-us/troubleshoot/windows-server/networking/configure-ipv6-in-windows">here</a>:</p>
+<pre><code>We don<span class="hljs-symbol">'t</span> recommend that you disable IPv6 <span class="hljs-keyword">or</span> IPv6 components <span class="hljs-keyword">or</span> unbind IPv6 from interfaces. <span class="hljs-keyword">If</span> you <span class="hljs-keyword">do</span>, <span class="hljs-keyword">some</span> Windows components might <span class="hljs-keyword">not</span> <span class="hljs-keyword">function</span>.
+
+We recommend using Prefer IPv4 over IPv6 <span class="hljs-keyword">in</span> prefix policies instead <span class="hljs-keyword">of</span> disabling IPV6.
+</code></pre><p>Disabling IPv6 should be well-thought-out, tested, and planned for, as it could break certain things in the network that rely on it. If it is not possible to disable it fully, then other mitigating controls, such as setting the MachineAccountQuota to <code>0</code> and enabling both SMB Signing and LDAP signing (which we will discuss in the next section), will greatly lower the risk of leaving it enabled.</p>
+<hr>
+<h3 id="moving-on">Moving On</h3>
+<p>This section explored various initial access vectors related to response spoofing attacks. These attacks can be used to gather password hashes for offline password cracking, relaying to the SMB service to gain local administrator access to one or more hosts, relaying to the LDAP service to create a computer account, perform enumeration of the domain, or perform an attack resulting in domain compromise.</p>
+<p>In the next section, we will look at ways to further harden against NTLM relaying in addition to preventing response spoofing attacks. These settings are important because, even if response spoofing is not possible, other attacks, such as authentication coercion, can be leveraged to relay a valid authentication attempt to hosts and services in the domain.</p>
+<hr>
+<h2 id="initial-access-weaknesses-post-spoofing-weaknesses">Initial Access Weaknesses - Post-Spoofing Weaknesses</h2>
+<hr>
+<p>A successful response spoofing attack can lead to the gathering of NTLMv2 password hashes that can potentially be cracked offline to gain a domain foothold. However, response spoofing can be leveraged in various ways when combined with NTLM relaying, so it is essential to harden the environment further, especially if certain protocols cannot be disabled for business reasons.</p>
+<hr>
+<h3 id="ntlm-relaying">NTLM Relaying</h3>
+<p>NTLM Relaying is a man-in-the-middle (MITM) attack that leverages response spoofing attacks such as LLMNR, NBT-NS, mDNS, and DNS spoofing over IPv6. In this attack, an attacker captures legitimate NTLM authentication traffic from a client and forwards (relays) it to another service such as SMB, LDAP, MSSQL, etc., and then uses it for various other attacks that may lead to individual host or full domain compromise. This type of attack is possible because NTLM does not bind to a specific endpoint, which makes it susceptible to redirection. Some examples where an attacker may be able to leverage NTLM relaying for a foothold include, but are not limited to:</p>
+<ul>
+<li>Relaying an account that is a local administrator on a given host where SMB signing is disabled to gain local administrator access. If this is a domain-joined host, they will have a low privileged foothold in the domain.</li>
+<li>Relaying a non-admin user to the SMB service on a target and leveraging this connection to enumerate the domain, possibly obtaining information that can be leveraged for further access</li>
+<li>Relaying to the LDAP service on a domain controller to create a computer account if the MachineAccountQuota is not set to 0.</li>
+<li>Relaying to the LDAP service to dump domain information such as users, groups, computers, the password policy, etc., and either finding a password in a description field or then leveraging the user list and password policy for a successful password spray.</li>
+<li>Relaying to the LDAP service to obtain an interactive LDAP session to perform domain enumeration.</li>
+<li>Relaying a privileged user account to the LDAP service on a domain controller to perform various other advanced attacks such as Resource-Based Constrained Delegation (RBCD), Shadow Credentials, etc.</li>
+<li>Relaying to the Web Enrollment endpoint on an Active Directory Certificate Services (AD CS) Certificate Authority server to obtain a certificate for a standard user or even resulting in direct domain compromise.</li>
+<li>Relaying to an MSSQL server, which then can possibly be leveraged to run operating system commands.</li>
+</ul>
+<p>These are some examples, and while more exist, they highlight some of the major risks of NTLM relaying in an AD environment. Mitigating issues such as LLMNR/NBT-NS/mDNS response spoofing, DNS spoofing over IPv6, changing the default MachineAccountQuota, etc., are important steps towards mitigating the risks of NTLM relaying, but further steps can be taken to harden environments against these attacks.</p>
+<p>Relaying attacks often require a MITM position in the network, but can still be possible with a forced re-authentication on a target machine, also known as authentication coercion. While outside the scope of this module, coercion attacks are prevalent. Some examples include the PrinterBug, PetitPotam, gaining access to a host, impersonating a logged-in user and forcing authentication on their behalf, leveraging stored procedures in MSSQL after a successful SQL Injection attack, and others. So, even if response spoofing attacks are not possible, an attacker has other options for one of the example relaying attacks above if they gain a foothold through another means.</p>
+<h4 id="remediating-ntlm-relaying-attacks">Remediating NTLM Relaying Attacks</h4>
+<p>There is no single setting to &quot;disable&quot; NTLM relaying; rather, there is a series of mitigating controls that can be implemented. We will cover some of these later in this section, while others will be covered in future modules.</p>
+<ul>
+<li>Enforce SMB Signing</li>
+<li>Disable support for NTLMv1 in favor of NTLMv2</li>
+<li>Disable NTLM authentication wherever possible in favor of Kerberos. Note that this is typically a massive undertaking and can take considerable time to implement, if even possible, within a given network</li>
+<li>Enforce LDAP Signing</li>
+<li>Enforce LDAP Channel Binding</li>
+<li>Place privileged users in the Protected Users group</li>
+<li>Disallow NTLM authentication requests from untrusted networks within Active Directory</li>
+<li>Network segmentation</li>
+</ul>
+<hr>
+<h3 id="default-machineaccountquota">Default MachineAccountQuota</h3>
+<p>The <a href="https://learn.microsoft.com/en-us/windows/win32/adschema/a-ms-ds-machineaccountquota">MS-DS-Machine-Account-Quota</a> attribute in LDAP controls the number of computer accounts that a user is permitted to create in an Active Directory domain. By default, the value is set to <code>10</code>, meaning any domain user (regardless of permission level) can join up to 10 computers to the domain. This setting was initially introduced for convenience and scalability, and it helped to reduce the burden on IT departments, especially when AD was first adopted in large organizations. It empowered users to set up their own machines and join them to the domain without having to wait for IT. This came as a benefit for users such as developers, lab admins, and other power users but came with a security tradeoff. When a computer is joined to an Active Directory domain, it is assigned a machine account with a name ending in a dollar sign (<code>$</code>), such as <code>WS01$</code>. This account is associated with a randomly generated password that is securely stored on both the computer (in the Local Security Authority) and within the domain controller&#39;s Active Directory database. By default, the computer automatically rotates this password every 30 days, although this interval can be modified through group policy or registry settings.</p>
+<p>Offensive tooling exists to allow an attacker to create a computer account that they control by specifying the username and password at the time of creation. This account will exist in LDAP but will not be tied to a physical computer or virtual machine. Computer accounts have most of the rights in Active Directory as a standard domain user account. They can be used to perform credentialed enumeration (i.e., run BloodHound), and various attacks such as Kerberoasting (and other Kerberos attacks), enumerating and attacking Active Directory Certificate Services (AD CS), and many more. An attacker requires valid domain credentials to create a computer account. However, this can be achieved using a response spoofing attack combined with an NTLM relay to the LDAP service on a domain controller. If successful, an attacker will have a valid account to authenticate to Active Directory without having to crack a password hash obtained via a response spoofing attack. This account creation can be seen as legitimate user behavior in environments that are not heavily monitored, allowing an attacker to blend in while performing authenticated enumeration and attacks.</p>
+<h4 id="remediating-default-machineaccountquota">Remediating Default MachineAccountQuota</h4>
+<p>Remediation is not complex and is critical in hardening Active Directory environments. This will prevent low-privileged users from joining machines to the domain or creating malicious computer accounts. Once this attribute is modified, only delegated users/admins can perform this action. Changing this setting is an important step, but other steps need to be taken, as discussed earlier in this section, to ensure that response spoofing attacks are not possible, which could allow an attacker to relay a privileged user account to create a machine account.</p>
+<p>We can check the value of the MachineAccountQuota attribute and set it to <code>0</code> using PowerShell one-liners on a domain controller. First, we&#39;ll check the setting.</p>
+<pre><code class="lang-powershell-session">PS <span class="hljs-string">C:</span>\htb&gt;Get-ADObject -Identity ((Get-ADDomain).distinguishedname) -Properties ms-DS-MachineAccountQuota
+
+<span class="hljs-string">DistinguishedName         :</span> DC=wyrmwood,DC=local
+ms-DS-<span class="hljs-string">MachineAccountQuota :</span> <span class="hljs-number">10</span>
+<span class="hljs-string">Name                      :</span> wyrmwood
+<span class="hljs-string">ObjectClass               :</span> domainDNS
+<span class="hljs-string">ObjectGUID                :</span> <span class="hljs-number">9</span>fa53cdd-d603<span class="hljs-number">-499</span>b-a2b0<span class="hljs-number">-320</span>b2ee20588
+</code></pre>
+<p>After confirming the default value of <code>10</code>, we can easily change it to <code>0</code>.</p>
+<pre><code class="lang-powershell-session">PS <span class="hljs-keyword">C</span>:\htb&gt; <span class="hljs-keyword">Set</span>-ADdomain -<span class="hljs-keyword">Identity</span> wyrmwood.local -<span class="hljs-keyword">Replace</span> @{"ms-DS-MachineAccountQuota"="0"} -<span class="hljs-keyword">Verbose</span>
+
+VERBOSE: Performing the operation <span class="hljs-string">"Set"</span> on target <span class="hljs-string">"DC=wyrmwood,DC=local"</span>.
+</code></pre>
+<p>Now that we&#39;ve made the change, we&#39;ll recheck it to confirm that non-privileged users can no longer create machine accounts.</p>
+<pre><code class="lang-powershell-session">PS <span class="hljs-string">C:</span>\htb&gt; Get-ADObject -Identity ((Get-ADDomain).distinguishedname) -Properties ms-DS-MachineAccountQuota
+
+
+<span class="hljs-string">DistinguishedName         :</span> DC=wyrmwood,DC=local
+ms-DS-<span class="hljs-string">MachineAccountQuota :</span> <span class="hljs-number">0</span>
+<span class="hljs-string">Name                      :</span> wyrmwood
+<span class="hljs-string">ObjectClass               :</span> domainDNS
+<span class="hljs-string">ObjectGUID                :</span> <span class="hljs-number">9</span>fa53cdd-d603<span class="hljs-number">-499</span>b-a2b0<span class="hljs-number">-320</span>b2ee20588
+</code></pre>
+<p>With that attribute now set to <code>0</code> we&#39;ve decreased the overall attack surface within the domain and removed a possible foothold vector combined with an NTLM relay attack.</p>
+<hr>
+<h3 id="smb-signing-disabled">SMB Signing Disabled</h3>
+<p><a href="https://learn.microsoft.com/en-us/troubleshoot/windows-server/networking/overview-server-message-block-signing">Server Message Block Signing (SMB Signing)</a> is a security feature that verifies both the origin and authenticity of SMB packets. When in place, every SMB message will contain a signature generated via the use of a session key. During SMB communications, the client will place a hash of the entire message in the SMB header signature field. It was first introduced in Windows 2000, Windows NT 4.0, and Windows 98, and the algorithms in use have evolved to be stronger over time. By default, it is disabled on most Windows workstation and server versions but is enforced by default on domain controller hosts. However, it has been enforced by default on Windows 11 since version 24H2.</p>
+<p>SMB Signing protects communications by verifying the message hash for tampering and authenticity. If the message changes during transmission (i.e., via a relay attack), the hash will not match, and the message will be rejected. The signature field of the SMB header also confirms both the sender and receiver identity. Enabling SMB signing is essential for preventing SMB relay attacks within a network.</p>
+<h4 id="remediating-smb-signing-disabled">Remediating SMB Signing Disabled</h4>
+<p>There are three configuration settings possible for SMB signing:</p>
+<ol>
+<li>SMB Signing enabled but not required - still vulnerable to SMB relaying</li>
+<li>SMB Signing disabled - vulnerable to SMB relaying</li>
+<li>SMB Signing enabled and required - not vulnerable to SMB relaying</li>
+</ol>
+<p>There are various ways to check if SMB Signing is enabled or disabled, one being the <a href="https://learn.microsoft.com/en-us/powershell/module/smbshare/get-smbclientconfiguration?view=windowsserver2025-ps">Get-SmbClientConfiguration</a> PowerShell cmdlet on a single host.</p>
+<pre><code class="lang-powershell-session">PS <span class="hljs-keyword">C</span>:\htb&gt; <span class="hljs-keyword">Get</span>-SmbServerConfiguration | FL RequireSecuritySignature ; <span class="hljs-keyword">Get</span>-SmbClientConfiguration | FL RequireSecuritySignature
+
+
+RequireSecuritySignature : <span class="hljs-keyword">False</span>
+
+RequireSecuritySignature : <span class="hljs-keyword">True</span>
+</code></pre>
+<p>This could be paired with Get-ADComputer and Invoke-Command to run against all domain computers. However, it requires the Active Directory PowerShell module and PSRemoting (WinRM) to be enabled. It can be most easily done from a domain controller host.</p>
+<pre><code class="lang-powershell-session">PS C:\htb&gt; $computers = Get-ADComputer -Filter * | <span class="hljs-keyword">Select</span>-Object -ExpandProperty Name
+
+Invoke-Command -ComputerName $computers -ScriptBlock {
+ Get-SmbServerConfiguration | <span class="hljs-keyword">Select</span>-Object EnableSecuritySignature, RequireSecuritySignature
+}
+
+
+
+EnableSecuritySignature  : <span class="hljs-type">True</span>
+RequireSecuritySignature : <span class="hljs-type">True</span>
+PSComputerName           : <span class="hljs-type">DC01</span>
+RunspaceId               : 8<span class="hljs-type">d2cef37</span>-<span class="hljs-number">59</span>ae-<span class="hljs-number">4233</span>-b6ad-<span class="hljs-number">3081479</span>f8dbc
+
+EnableSecuritySignature  : <span class="hljs-type">False</span>
+RequireSecuritySignature : <span class="hljs-type">False</span>
+PSComputerName           : <span class="hljs-type">MS01</span>
+RunspaceId               : 9<span class="hljs-type">c886941</span>-<span class="hljs-number">86</span>a6-<span class="hljs-number">4989</span>-b1c5-fd2141cf8c2a
+</code></pre>
+<p>The status can also be determined by querying the <code>HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters</code> and <code>HKLM:\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters</code> registry keys, for example:</p>
+<pre><code class="lang-powershell-session">PS C:\htb&gt; <span class="hljs-comment"># SMB Server Registry settings</span>
+<span class="hljs-variable">$serverKey</span> = <span class="hljs-string">"HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters"</span>
+<span class="hljs-variable">$serverRequire</span> = <span class="hljs-built_in">Get-ItemProperty</span> -Path <span class="hljs-variable">$serverKey</span> -Name <span class="hljs-string">"RequireSecuritySignature"</span> -ErrorAction SilentlyContinue
+<span class="hljs-variable">$serverEnable</span>  = <span class="hljs-built_in">Get-ItemProperty</span> -Path <span class="hljs-variable">$serverKey</span> -Name <span class="hljs-string">"EnableSecuritySignature"</span> -ErrorAction SilentlyContinue
+
+<span class="hljs-comment"># SMB Client Registry settings</span>
+<span class="hljs-variable">$clientKey</span> = <span class="hljs-string">"HKLM:\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters"</span>
+<span class="hljs-variable">$clientRequire</span> = <span class="hljs-built_in">Get-ItemProperty</span> -Path <span class="hljs-variable">$clientKey</span> -Name <span class="hljs-string">"RequireSecuritySignature"</span> -ErrorAction SilentlyContinue
+<span class="hljs-variable">$clientEnable</span>  = <span class="hljs-built_in">Get-ItemProperty</span> -Path <span class="hljs-variable">$clientKey</span> -Name <span class="hljs-string">"EnableSecuritySignature"</span> -ErrorAction SilentlyContinue
+
+<span class="hljs-comment"># Output results</span>
+<span class="hljs-built_in">Write-Host</span> <span class="hljs-string">"`n===== SMB Server Settings ====="</span>
+<span class="hljs-built_in">Write-Host</span> <span class="hljs-string">"RequireSecuritySignature (Server): $(<span class="hljs-variable">$serverRequire</span>.RequireSecuritySignature)"</span>
+<span class="hljs-built_in">Write-Host</span> <span class="hljs-string">"EnableSecuritySignature  (Server): $(<span class="hljs-variable">$serverEnable</span>.EnableSecuritySignature)"</span>
+
+<span class="hljs-built_in">Write-Host</span> <span class="hljs-string">"`n===== SMB Client Settings ====="</span>
+<span class="hljs-built_in">Write-Host</span> <span class="hljs-string">"RequireSecuritySignature (Client): $(<span class="hljs-variable">$clientRequire</span>.RequireSecuritySignature)"</span>
+<span class="hljs-built_in">Write-Host</span> <span class="hljs-string">"EnableSecuritySignature  (Client): $(<span class="hljs-variable">$clientEnable</span>.EnableSecuritySignature)"</span>
+
+
+===== SMB Server Settings =====
+RequireSecuritySignature (Server): <span class="hljs-number">1</span>
+EnableSecuritySignature  (Server): <span class="hljs-number">1</span>
+
+===== SMB Client Settings =====
+RequireSecuritySignature (Client): <span class="hljs-number">0</span>
+EnableSecuritySignature  (Client): <span class="hljs-number">1</span>
+</code></pre>
+<p>The values map to the following:</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Value</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RequireSecuritySignature</td>
+<td>1</td>
+<td>Signing is required</td>
+</tr>
+<tr>
+<td>RequireSecuritySignature</td>
+<td>0</td>
+<td>Signing is not required</td>
+</tr>
+<tr>
+<td>EnableSecuritySignature</td>
+<td>1</td>
+<td>Signing is enabled (if needed)</td>
+</tr>
+<tr>
+<td>EnableSecuritySignature</td>
+<td>0</td>
+<td>Signing is disabled</td>
+</tr>
+</tbody>
+</table>
+<p>If any of these settings equal <code>0</code>, then this check would be a fail (or not remediated), meaning that SMB Signing is disabled. If both are a <code>1</code>, then it is a pass (or remediated), meaning that SMB Signing is enabled AND required.</p>
+<p>This can be remediated via the Registry or, ideally, via Group Policy. If done via the Registry, it can be done on a host-by-host basis, which is not ideal as hosts could be missed in large environments or combined with the <code>Get-ADComputer</code> and <code>Invoke-Command</code> cmdlets. An example via the Registry would be:</p>
+<pre><code class="lang-powershell-session">PS C:\htb&gt; # SMB Server
+<span class="hljs-keyword">Set</span>-ItemProperty <span class="hljs-comment">-Path</span> <span class="hljs-comment">"HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters"</span> `
+ -Name <span class="hljs-comment">"RequireSecuritySignature"</span><span class="hljs-comment"> -Value 1</span>
+
+<span class="hljs-keyword">Set</span>-ItemProperty <span class="hljs-comment">-Path</span> <span class="hljs-comment">"HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters"</span> `
+ -Name <span class="hljs-comment">"EnableSecuritySignature"</span><span class="hljs-comment"> -Value 1</span>
+
+# SMB <span class="hljs-comment">Client</span>
+<span class="hljs-keyword">Set</span>-ItemProperty <span class="hljs-comment">-Path</span> <span class="hljs-comment">"HKLM:\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters"</span> `
+ -Name <span class="hljs-comment">"EnableSecuritySignature"</span><span class="hljs-comment"> -Value 1</span>
+
+<span class="hljs-keyword">Set</span>-ItemProperty <span class="hljs-comment">-Path</span> <span class="hljs-comment">"HKLM:\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters"</span> `
+ -Name <span class="hljs-comment">"RequireSecuritySignature"</span><span class="hljs-comment"> -Value 1</span>
+</code></pre>
+<p>In Group Policy, the setting lives under <code>Computer Configuration</code> --&gt; <code>Windows Settings</code> --&gt; <code>Security Settings</code> --&gt; <code>Local Policies</code> --&gt; <code>Security Options</code>. Four options must be set:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/306/smb_signing_gpo.png" alt="Group Policy Management Editor showing Security Options with various policy settings, including &#39;Network access: Allow anonymous SID/Name translation&#39; enabled."></p>
+<p>Each of these options maps to a Registry key:</p>
+<p><strong>Microsoft network client: Digitally sign communications (always)</strong>\
+Registry key: <code>HKEY_LOCAL_MACHINE\System\CurrentControlSet\Services\LanManWorkstation\Parameters</code>\
+Registry value: RequireSecuritySignature\
+Data Type: REG_DWORD\
+Data: 0 (disable), 1 (enable)</p>
+<p><strong>Microsoft network client: Digitally sign communications (if server agrees)</strong>\
+Registry key: <code>HKEY_LOCAL_MACHINE\System\CurrentControlSet\Services\LanManWorkstation\Parameters</code>\
+Registry value: EnableSecuritySignature\
+Data Type: REG_DWORD\
+Data: 0 (disable), 1 (enable)</p>
+<p><strong>Microsoft network server: Digitally sign communications (always)</strong>\
+Registry key: <code>HKEY_LOCAL_MACHINE\System\CurrentControlSet\Services\LanManServer\Parameters</code>\
+Registry value: RequireSecuritySignature\
+Data Type: REG_DWORD\
+Data: 0 (disable), 1 (enable)</p>
+<p><strong>Microsoft network server: Digitally sign communications (if client agrees)</strong>\
+Registry key: <code>HKEY_LOCAL_MACHINE\System\CurrentControlSet\Services\LanManServer\Parameters</code>\
+Registry value: EnableSecuritySignature\
+Data Type: REG_DWORD\
+Data: 0 (disable), 1 (enable)</p>
+<p>Enabling SMB Signing is a relatively quick and easy process and pays dividends in protecting your network against SMB Relaying attacks.</p>
+<hr>
+<h3 id="ldap-signing-channel-binding-disabled">LDAP Signing/Channel Binding Disabled</h3>
+<p>Another key protocol that can be targeted by NTLM Relaying attacks is LDAP. A successful relay to the LDAP service on a domain controller can be used to gather domain information such as users, groups, computers, and their properties, group membership, trusts, domain policy, etc. Relaying to LDAP can also be used to create an attacker-controlled computer account if the ms-DS-MachineAccountQuota is not set to <code>0</code>, which is a very common manner for gaining a foothold in AD because it does not require an attacker to perform offline password cracking against an NTLMv2 password hash. Relaying to LDAP is even more dangerous when a privileged account is relayed, as it may be used for various attacks that can result in domain compromise, such as creating a new user and granting the account replication privileges. This account can then be used to perform a DCSync attack, obtaining the NTLM password hashes for all accounts in the domain.</p>
+<p>When LDAP Signing is enabled, the server will reject LDAP binds that do not request integrity verification through signing. As mentioned previously, unsigned LDAP traffic is susceptible to replay attacks, where an attacker can intercept an authentication attempt and obtain a ticket. This ticket can then be reused to impersonate the legitimate user it was issued for. LDAP Signing applies to LDAP over TCP port 389.</p>
+<p>LDAP Channel Binding binds the TLS tunnel and LDAP application layer together, creating a unique fingerprint called a Channel Binding Token (CBT). When enabled, an LDAP communication cannot be reused without establishing a new TLS tunnel. This new tunnel would invalidate the CBT with the initial LDAP communication, essentially preventing relayed authentication. LDAP Channel Binding applies to LDAP over SSL/TLS (also known as LDAPS) on port 636.</p>
+<p>It is common for organizations to enable LDAP Signing to prevent relaying to LDAP but overlook LDAP Channel Binding, leaving relays open to LDAPS over port 636. If LDAPS is not enabled, then channel binding isn&#39;t needed. However, Microsoft recommends enabling both because LDAPS may be enabled without your knowledge (i.e., by apps or misconfigurations) and for future-proofing or secure defaults in the future.</p>
+<p>The table below explains the differences:</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Purpose</th>
+<th>Affected Protocol</th>
+<th>Required to Stop LDAP Relays?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LDAP Signing</td>
+<td>Integrity check (mitigates tampering, some relays)</td>
+<td>LDAP (389)</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>LDAP Channel Binding</td>
+<td>Ties TLS to authentication (mitigates MITM/relays over LDAPS)</td>
+<td>LDAPS (636)</td>
+<td>Yes, if LDAPS is enabled</td>
+</tr>
+<tr>
+<td>Using both</td>
+<td>Fully mitigate all LDAP relay paths</td>
+<td>LDAP + LDAPS</td>
+<td>Yes</td>
+</tr>
+</tbody>
+</table>
+<h4 id="checking-for-ldap-signing">Checking for LDAP Signing</h4>
+<p>We can query the Registry to check if LDAP Signing is enabled.</p>
+<pre><code class="lang-powershell-session">PS C:<span class="hljs-symbol">\h</span>tb&gt; Get-ItemProperty -Path "HKLM:<span class="hljs-symbol">\S</span>YSTEM<span class="hljs-symbol">\C</span>urrentControlSet<span class="hljs-symbol">\S</span>ervices<span class="hljs-symbol">\N</span>TDS<span class="hljs-symbol">\P</span>arameters" -Name "LDAPServerIntegrity"
+
+ldapserverintegrity : 1
+PSPath              : Microsoft.PowerShell.Core<span class="hljs-symbol">\R</span>egistry::HKEY_LOCAL_MACHINE<span class="hljs-symbol">\S</span>YSTEM<span class="hljs-symbol">\C</span>urrentControlSet<span class="hljs-symbol">\S</span>ervices<span class="hljs-symbol">\N</span>TDS<span class="hljs-symbol">\P</span>arameters
+PSParentPath        : Microsoft.PowerShell.Core<span class="hljs-symbol">\R</span>egistry::HKEY_LOCAL_MACHINE<span class="hljs-symbol">\S</span>YSTEM<span class="hljs-symbol">\C</span>urrentControlSet<span class="hljs-symbol">\S</span>ervices<span class="hljs-symbol">\N</span>TDS
+PSChildName         : Parameters
+PSDrive             : HKLM
+PSProvider          : Microsoft.PowerShell.Core<span class="hljs-symbol">\R</span>egistry
+</code></pre>
+<p>The values for the <code>ldapserverintegrity</code> value are:</p>
+<p><code>0</code> - Signing not required (vulnerable to LDAP relays)\
+<code>1</code> - Signing supported but not required (still vulnerable to LDAP relays)\
+<code>2</code> - Signing required (secured against LDAP relays)</p>
+<h4 id="checking-for-ldap-channel-binding">Checking for LDAP Channel Binding</h4>
+<p>The following check can be used to query the Registry for the LDAP Channel Binding status. By default, this Registry value does not exist unless it is manually configured via GPO or directly or added via an update or security baseline changes. As we can see below, the value does not exist. This is either because the domain controller is not up-to-date or the setting is not defined in Group Policy.</p>
+<p>This setting was added with Microsoft advisory <a href="https://support.microsoft.com/en-us/topic/2020-2023-and-2024-ldap-channel-binding-and-ldap-signing-requirements-for-windows-kb4520412-ef185fb8-00f7-167d-744c-f299a66fc00a">AVD190023</a>. As of the March 10, 2020 cumulative update for Server 2019, the LDAP Channel Binding setting <code>LdapEnforceChannelBinding</code> became supported and configurable via Registry and Group Policy, so it is integral that all domain controllers are up-to-date.</p>
+<pre><code class="lang-powershell-session">PS C:<span class="hljs-symbol">\h</span>tb&gt; Get-ItemProperty -Path "HKLM:<span class="hljs-symbol">\S</span>YSTEM<span class="hljs-symbol">\C</span>urrentControlSet<span class="hljs-symbol">\S</span>ervices<span class="hljs-symbol">\N</span>TDS<span class="hljs-symbol">\P</span>arameters" -Name "LdapEnforceChannelBinding"
+
+Get-ItemProperty : Property LdapEnforceChannelBinding does not exist at path HKEY_LOCAL_MACHINE<span class="hljs-symbol">\S</span>YSTEM<span class="hljs-symbol">\C</span>urrentControlSet<span class="hljs-symbol">\S</span>ervices<span class="hljs-symbol">\N</span>TDS<span class="hljs-symbol">\P</span>arameters.
+At line:1 char:1
++ Get-ItemProperty -Path "HKLM:<span class="hljs-symbol">\S</span>YSTEM<span class="hljs-symbol">\C</span>urrentControlSet<span class="hljs-symbol">\S</span>ervices<span class="hljs-symbol">\N</span>TDS<span class="hljs-symbol">\ </span>...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ + CategoryInfo          : InvalidArgument: (LdapEnforceChannelBinding:String) [Get-ItemProperty], PSArgumentException
+ + FullyQualifiedErrorId : System.Management.Automation.PSArgumentException,Microsoft.PowerShell.Commands.GetItemPropertyCommand
+</code></pre>
+<p>When enabled, the setting may show a value of 0, 1, or 2. Here we can see the setting is <code>0</code>, meaning the option is present (domain controller updated) but disabled.</p>
+<pre><code class="lang-powershell-session">PS C:<span class="hljs-symbol">\h</span>tb&gt; Get-ItemProperty -Path "HKLM:<span class="hljs-symbol">\S</span>YSTEM<span class="hljs-symbol">\C</span>urrentControlSet<span class="hljs-symbol">\S</span>ervices<span class="hljs-symbol">\N</span>TDS<span class="hljs-symbol">\P</span>arameters" -Name "LdapEnforceChannelBinding"
+
+
+ldapenforcechannelbinding : 0
+PSPath                    : Microsoft.PowerShell.Core<span class="hljs-symbol">\R</span>egistry::HKEY_LOCAL_MACHINE<span class="hljs-symbol">\S</span>YSTEM<span class="hljs-symbol">\C</span>urrentControlSet<span class="hljs-symbol">\S</span>ervices<span class="hljs-symbol">\N</span>T
+ DS<span class="hljs-symbol">\P</span>arameters
+PSParentPath              : Microsoft.PowerShell.Core<span class="hljs-symbol">\R</span>egistry::HKEY_LOCAL_MACHINE<span class="hljs-symbol">\S</span>YSTEM<span class="hljs-symbol">\C</span>urrentControlSet<span class="hljs-symbol">\S</span>ervices<span class="hljs-symbol">\N</span>T
+ DS
+PSChildName               : Parameters
+PSDrive                   : HKLM
+PSProvider                : Microsoft.PowerShell.Core<span class="hljs-symbol">\R</span>egistry
+</code></pre>
+<p>The possible values for <code>LdapEnforceChannelBinding</code> when it is present are:</p>
+<p><code>0</code> - Disabled (vulnerable to LDAPS relays)\
+<code>1</code> - Compatibility mode (not fully secure)\
+<code>2</code> - Channel Binding enforced (secured against LDAPS relays)</p>
+<p>Neither LDAP Signing nor LDAP Channel Binding is enabled by default on domain controllers in any version of Windows Server, so the LDAP/LDAPS services are vulnerable to relaying out-of-the-box.</p>
+<h4 id="remediating-ldap-signing-disabled">Remediating LDAP Signing Disabled</h4>
+<p>LDAP Signing can be enabled via the Registry by modifying the <code>LDAPServerIntegrity</code> key. This can be applied on each domain controller individually or remotely across domain controllers using <code>Invoke-Command</code>. However, the recommended option for enabling it is via Group Policy, specifically the <code>Default Domain Controller Policy</code>, to ensure it is applied evenly across all domain controllers. The setting can be found in: <code>Computer Configuration</code> --&gt; <code>Policies</code> --&gt; <code>Windows Settings</code> --&gt; <code>Security Settings</code> --&gt; <code>Local Policies</code> --&gt; <code>Domain controller: LDAP server signing requirements</code>.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/306/ldap_signing_gpo.png" alt="Group Policy Management Editor showing Security Options with &#39;Domain controller: LDAP server signing requirements&#39; setting, options for None and Require signing."></p>
+<p>The options are straightforward: either <code>None</code> or <code>Require Signing</code>. Once set and a gpupdate is applied, we can check by querying the Registry and finding a value of <code>2</code>, meaning LDAP Signing is now required.</p>
+<pre><code class="lang-powershell-session">PS C:<span class="hljs-symbol">\h</span>tb&gt;  Get-ItemProperty -Path "HKLM:<span class="hljs-symbol">\S</span>YSTEM<span class="hljs-symbol">\C</span>urrentControlSet<span class="hljs-symbol">\S</span>ervices<span class="hljs-symbol">\N</span>TDS<span class="hljs-symbol">\P</span>arameters" -Name "LDAPServerIntegrity"
+
+ldapserverintegrity : 2
+PSPath              : Microsoft.PowerShell.Core<span class="hljs-symbol">\R</span>egistry::HKEY_LOCAL_MACHINE<span class="hljs-symbol">\S</span>YSTEM<span class="hljs-symbol">\C</span>urrentControlSet<span class="hljs-symbol">\S</span>ervices<span class="hljs-symbol">\N</span>TDS<span class="hljs-symbol">\P</span>ar
+ ameters
+PSParentPath        : Microsoft.PowerShell.Core<span class="hljs-symbol">\R</span>egistry::HKEY_LOCAL_MACHINE<span class="hljs-symbol">\S</span>YSTEM<span class="hljs-symbol">\C</span>urrentControlSet<span class="hljs-symbol">\S</span>ervices<span class="hljs-symbol">\N</span>TDS
+PSChildName         : Parameters
+PSDrive             : HKLM
+PSProvider          : Microsoft.PowerShell.Core<span class="hljs-symbol">\R</span>egistry
+</code></pre>
+<h4 id="remediating-ldap-channel-binding-disabled">Remediating LDAP Channel Binding Disabled</h4>
+<p>LDAP Channel binding can also be enabled via the Registry, but once again, the best option is to configure it via Group Policy. This can be done via the <code>Default Domain Controller Policy</code> under the same path, by enabling the setting <code>Domain controller: LDAP server channel binding token requirements</code>.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/306/ldap_channel_binding.png" alt="Domain controller: LDAP server channel binding token requirements setting with options: Never, When supported, Always."></p>
+<p>This can be set to <code>Never</code>, <code>When supported</code>, or <code>Always</code>, corresponding to the 0, 1, and 2 values we saw above. After enabling and applying a gpupdate, we can check to ensure this was correctly set.</p>
+<pre><code class="lang-powershell-session">PS C:<span class="hljs-symbol">\h</span>tb&gt; Get-ItemProperty -Path "HKLM:<span class="hljs-symbol">\S</span>YSTEM<span class="hljs-symbol">\C</span>urrentControlSet<span class="hljs-symbol">\S</span>ervices<span class="hljs-symbol">\N</span>TDS<span class="hljs-symbol">\P</span>arameters" -Name "LdapEnforceChannelBinding"
+
+ldapenforcechannelbinding : 2
+PSPath                    : Microsoft.PowerShell.Core<span class="hljs-symbol">\R</span>egistry::HKEY_LOCAL_MACHINE<span class="hljs-symbol">\S</span>YSTEM<span class="hljs-symbol">\C</span>urrentControlSet<span class="hljs-symbol">\S</span>ervices<span class="hljs-symbol">\N</span>T
+ DS<span class="hljs-symbol">\P</span>arameters
+PSParentPath              : Microsoft.PowerShell.Core<span class="hljs-symbol">\R</span>egistry::HKEY_LOCAL_MACHINE<span class="hljs-symbol">\S</span>YSTEM<span class="hljs-symbol">\C</span>urrentControlSet<span class="hljs-symbol">\S</span>ervices<span class="hljs-symbol">\N</span>T
+ DS
+PSChildName               : Parameters
+PSDrive                   : HKLM
+PSProvider                : Microsoft.PowerShell.Core<span class="hljs-symbol">\R</span>egistry
+</code></pre>
+<p>A check of the Registry after applying the Group Policy update shows that the key <code>LdapEnforceChannelBinding</code> is set to <code>2</code>, so it is applied, and we are now protected against relay attacks targeting both LDAP and LDAPS.</p>
+<p>Though we set both with Group Policy, it is still a good practice to individually verify on each domain controller in the environment to ensure the setting was correctly applied. Furthermore, like with any setting in Active Directory, it is essential to note that enabling one or both of these may break communications with legacy applications/services or cause other unintended issues, so each remediation step should be tested thoroughly to avoid any disruption to the business.</p>
+<hr>
+<h3 id="recap-and-next-steps">Recap and Next Steps</h3>
+<p>In this section, we covered various default settings in Active Directory that can be leveraged post-response spoofing to gain a foothold, move laterally, compromise individual hosts, or compromise the domain. Disabling/enabling each of these settings can impact the network and cause issues (especially with legacy applications and services), so they should be carefully tested and implemented one at a time to ensure no disruptions that could negatively impact the business.</p>
+<p>In the next section, we will cover various other common initial access weaknesses. Many of them are relatively straightforward to remediate/harden against but often overlooked.</p>
+<hr>
+<h2 id="other-common-initial-access-weaknesses">Other Common Initial Access Weaknesses</h2>
+<p>Now that we&#39;ve covered common, unauthenticated, initial access vectors resulting from legacy configurations and misconfigurations, we&#39;ll cover some other ways that a penetration tester or real-world attacker may be able to gain a foothold in your AD environment if not hardened against these issues.</p>
+<hr>
+<h3 id="password-policy-improvements-weak-passwords-preventing-password-spraying">Password Policy Improvements/Weak Passwords - Preventing Password Spraying</h3>
+<p>The domain password policy is a significant issue still relevant even within medium to large organizations. We see organizations with password policies that are very inviting to a password spraying attack, primarily if an attacker can obtain the password policy through a method such as an SMB null session. We&#39;ll cover the major aspects of an AD password policy that may leave an organization open to a password spraying attack. This attack consists of &quot;spraying&quot; a weak/common password against a list of all Active Directory users. If the password policy is known, this can be performed within the account lockout threshold to prevent AD accounts from being locked out. If the password policy is unknown, an attacker may perform a single password spray every few hours or once daily to avoid a potential account lockout (though lockout can still occur).</p>
+<p>The key aspects of a domain password policy include the following elements:</p>
+<ul>
+<li><strong>Minimum Password length</strong> - determines how many characters a password must contain.</li>
+<li><strong>Minimum password age</strong> - how long a password must be used before it can be changed.</li>
+<li><strong>Enforce Password history</strong> - the threshold of how many unique passwords must be used before a previous password can be reused. Helps to discourage password reuse.</li>
+<li><strong>Maximum password age</strong> - How many days a password can be used before it must be changed.</li>
+<li><strong>Password must meet complexity requirements</strong> - when enabled, this sets the following requirements: passwords may not contain the user&#39;s samAccountName or displayName values, the password must contain characters from three of the four major categories (uppercase letters, lowercase letters, numbers 0-9, non-alphanumeric special characters),</li>
+<li><strong>Account lockout threshold</strong> - determines the number of failed sign-in attempts that will result in user account lockout.</li>
+<li><strong>Account lockout duration</strong> - the number of minutes an account is locked out until automatically becoming unlocked.</li>
+<li><strong>Reset account lockout counter after</strong> - the number of minutes that must pass from a failed login attempt before the lockout counter is reset to 0.</li>
+<li><strong>Store passwords using reversible encryption</strong> - passwords changed or set after this setting is enabled are stored in a retrievable format, not using a one-way hashing function. When an attacker obtains the NTDS file after domain compromise, any passwords set after this setting is enabled can be retrieved in clear text without requiring offline password cracking against the NTLM password hash. One reason for enabling this setting would be to support applications that use protocols requiring the user&#39;s clear text password for authentication. It is highly recommended that this setting not be enabled unless absolutely necessary for business reasons, and the environment is extremely well-hardened against attack.</li>
+</ul>
+<p>Other options can be modified, but these are the key ones we will focus on.</p>
+<p>The following table includes examples of each of these elements, showing the Active Directory defaults, an example of a weak AD password policy, an example of a password policy implemented with Microsoft best practice recommendations, and an example of implementing password policy updates recommended by the National Institute of Standards and Technology (NIST).</p>
+<table>
+<thead>
+<tr>
+<th><strong>Setting</strong></th>
+<th><strong>AD Default</strong></th>
+<th><strong>Microsoft Best Practice</strong></th>
+<th><strong>NIST Recommendation</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Minimum password length</strong></td>
+<td>7 characters</td>
+<td>12-14 characters (though some Microsoft guides state 8)</td>
+<td>At least 8 characters; encourage longer via passphrases</td>
+</tr>
+<tr>
+<td><strong>Minimum password age</strong></td>
+<td>1 day</td>
+<td>1 day (prevents immediate reuse)</td>
+<td>No specific requirement</td>
+</tr>
+<tr>
+<td><strong>Enforce password history</strong></td>
+<td>24 passwords</td>
+<td>24 passwords</td>
+<td>No specific requirement (discourages reuse via user training/controls)</td>
+</tr>
+<tr>
+<td><strong>Maximum password age</strong></td>
+<td>42 days</td>
+<td>60–90 days (or <strong>no expiration</strong> for well-managed accounts)</td>
+<td><strong>No expiration</strong> unless there is evidence of compromise</td>
+</tr>
+<tr>
+<td><strong>Password must meet complexity requirements</strong></td>
+<td>Enabled</td>
+<td>Enabled</td>
+<td><strong>NOT required</strong>, but encourage strong/passphrase-based credentials</td>
+</tr>
+<tr>
+<td><strong>Account lockout threshold</strong></td>
+<td>0 (disabled)</td>
+<td>10 invalid attempts</td>
+<td>Avoid if possible; use risk-based detection</td>
+</tr>
+<tr>
+<td><strong>Account lockout duration</strong></td>
+<td>Not applicable</td>
+<td>15 minutes</td>
+<td>Prefer monitoring + alerting instead of lockouts</td>
+</tr>
+<tr>
+<td><strong>Reset lockout counter after</strong></td>
+<td>Not applicable</td>
+<td>15 minutes</td>
+<td>Same — avoid lockouts; use alerts/monitoring</td>
+</tr>
+<tr>
+<td><strong>Store passwords using reversible encryption</strong></td>
+<td>Disabled</td>
+<td>Disabled (unless explicitly required for legacy apps)</td>
+<td>Disabled</td>
+</tr>
+</tbody>
+</table>
+<p>Microsoft maintains additional guidelines for password policies in <a href="https://learn.microsoft.com/en-us/microsoft-365/admin/misc/password-policy-recommendations?view=o365-worldwide">Microsoft 365</a>, which are worth reviewing but are outside the scope of this module, which focuses on on-prem Active Directory. However, elements of these guidelines should be taken into consideration in hybrid environments that integrate on-premises Active Directory domains with Microsoft Entra ID. &#x20;</p>
+<p>It is also possible to specify multiple different password policies in Active Directory through the use of <a href="https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/get-started/adac/fine-grained-password-policies?tabs=adac">Fine Grained Password Policies</a>. This can be used to define different password lengths, account lockout policies, etc., with stricter settings applies to privileged accounts than standard user accounts. When considering a password policy it is essential to balance security and user experience. You likely would not want standard users to have an account lockout threshold of 1 or 2 attempts, an indefinite lockout period, or a reset lockout counter that does not reset automatically. Some environments may need more stringent requirements, but if these settings are applied across the board too strictly, it could interrupt daily operations and result in a heavy load on the help desk to unlock/reset accounts when users inevitably type them in wrong while going about their day. This also applies to password length and complexity. Longer passwords are not always better; for example, if the password policy requires extremely long passwords, they can be more difficult for users to remember, resulting in them choosing a long but weak password such as <code>Welcome12345</code> or the like. While long, this type of password may be able to be guessed in a password spraying attack. A better option could be a passphrase or even a random 8 character password that is easy for the user to remember but would be highly unlikely to be guessed in a password spraying attack. Password complexity on its own is not all it&#39;s cracked up to be, as it can lead to users choosing predictable passwords that seem strong by substituting characters (i.e., <code>Passw0rd</code>) or having them iterate through sequential passwords whenever a change is required (<code>Password</code>, <code>Password2</code>, <code>Password3</code>, etc.).</p>
+<p>However, a fine-grained password policy could be used to enforce much longer passwords, require manual intervention in the case of a lockout, etc., for service accounts and other privileged user accounts in the domain.</p>
+<p>Another option that can be implemented to enhance password security is using an enterprise password manager, which will allow users to choose strong, randomized passwords without having to write them down on a sticky note to remember them. Another option is the use of a password filter. If an organization is using AD with Entra ID, then <a href="https://learn.microsoft.com/en-us/entra/identity/authentication/concept-password-ban-bad-on-premises">Microsoft Entra Password Protection</a> can be enabled to detect and block weak passwords and their variants. Active Directory supports the implementation of a password filter by using a <a href="https://learn.microsoft.com/en-us/windows/win32/secmgmt/installing-and-registering-a-password-filter-dll">Password Filter DLL</a>, but this requires secure programming knowledge to ensure that implementing a custom DLL does not introduce additional vulnerabilities, such as sending plaintext passwords across the network. Various commercial Active Directory password filters exist as well. Some, for example, tie into the <a href="https://haveibeenpwned.com/">haveibeenpwned</a> database to prevent users from selecting passwords in public breach databases. These types of password filters also allow administrators to ban common words and variations on those words, no use of first or last name, company name or variations of it, company city, context-specific words (such as the name of a service), repetitive or sequential characters, etc. Implementing the proper password filter solution can significantly improve an organization&#39;s overall password strength.</p>
+<h4 id="other-considerations">Other Considerations</h4>
+<p>Some other steps that can be taken include enforcing multi-factor authentication (MFA) wherever possible, not requiring mandatory periodic password resets as this may result in users choosing weak passwords or writing them down, implementing single sign-on (SSO) to allow users to access multiple applications or systems with one set of login credentials, or even transitioning to passwordless authentication through the use of Windows Hello facial recognition or fingerprint scanning, the Microsoft Authenticator app, and physical hardware security keys (i.e., FIDO2 security keys). Various other measures can be taken, and it is worth researching to find the best fit/balance of security and user experience for your environment.</p>
+<p>Another critical step is establishing strong monitoring/alerting to quickly detect and stop password spraying attacks. Furthermore, other technical controls/solutions exist that can be used to determine whether an account can authenticate from certain computers and automatically restrict access if an anomalous logon is detected.</p>
+<p>On top of solid technical controls is end-user training. People are often the weakest link in an organization, so educating users is critical. One of the most important messages to instill in users is not to reuse their organization password for non-work related services (such as social media or online shopping websites). Furthermore, it is essential that users do not register for external services (outside of those required for their role) with their company email due to the risk of their email and password appearing in a data breach. If this happens, an attacker may be able to leverage a username or email and weak password found in a data breach of a social media site or online service to perform a &quot;credential stuffing&quot; attack and gain access to corporate resources such as email, VPN, or other remote access services. It is common for penetration testers/red teamers to search a company&#39;s domain in known data breaches and then attempt to log into external services using these credential pairs, so real-world attackers are doing the same.</p>
+<p>Once again, the best password policy for an organization will depend on various factors and differ from company to company. However, an extremely strong and well-thought-out password policy will not matter if layered controls aren&#39;t in place on top of hardening against common initial access, lateral movement, and domain privilege escalation vectors. I have personally performed penetration tests where I was able to obtain various NTLMv2 password hashes through a response spoofing attack, but I could not crack them for days with a very powerful GPU password-cracking rig. However, one successful NTLM relay resulted in either a foothold or a direct compromise of the domain. Active Directory is vast and can be challenging to secure, especially in continuously changing and growing environments. Do not rely on just one control, thinking you are safe against attack because you require 14-character passwords while neglecting the basics! It can be tempting to purchase and install tool after tool, but I have pentested plenty of organizations that, once you peel back the proverbial onion, these tools are just bandaids on top of legacy settings and a configuration/patch management nightmare.</p>
+<h4 id="remediating-weak-ad-passwords">Remediating Weak AD Passwords</h4>
+<p>To enhance password security, administrators can modify the password policy through Group Policy. This involves setting requirements for password complexity, length, and expiration.</p>
+<p>This can be done by:</p>
+<p>Launching the Group Policy Management Console (GPMC) on a domain controller. Navigate to <code>Computer Configuration -&gt; Policies -&gt; Windows Settings -&gt; Security Settings -&gt; Account Policies -&gt; Password Policy</code> and modify the settings to enforce stronger password requirements following best practices.</p>
+<p>Meanwhile, in <code>Computer Configuration -&gt; Policies -&gt; Windows Settings -&gt; Security Settings -&gt; Account Policies -&gt; Account Lockout Policy</code>, administrators can configure appropriate account lockout settings, also per best practices. To sync these settings changes across the domain, a <code>gpupdate /force</code> can be executed.</p>
+<p>Now that a hardened password policy is in place across the domain, if weak passwords are identified, administrators can reset them to stronger alternatives. PowerShell provides a secure and efficient method to do this:</p>
+<pre><code class="lang-powershell-session">PS C:\htb&gt; <span class="hljs-built_in">$NewPassword</span> = <span class="hljs-keyword">Read</span>-Host -AsSecureString <span class="hljs-string">"Enter the temporary password for the user"</span>
+<span class="hljs-keyword">Set</span>-ADAccountPassword -Identity <span class="hljs-built_in">$accountname</span> -NewPassword <span class="hljs-built_in">$NewPassword</span> -Reset
+</code></pre>
+<p>Administrators can require users to change their passwords at the next login. This ensures that after logging in with the temporary password set by the administrator, users will create their own secure passwords.</p>
+<pre><code class="lang-powershell-session">PS C:\htb&gt; <span class="hljs-keyword">Set</span>-ADUser -Identity <span class="hljs-built_in">$accountname</span> -ChangePasswordAtLogon <span class="hljs-built_in">$true</span>
+</code></pre>
+<hr>
+<h3 id="patching-domain-controller-coercion-methods">Patching Domain Controller Coercion Methods</h3>
+<p>Multiple modern Active Directory attacks rely on coercion techniques, or tricking domain controllers or other privileged systems into initiating authentication to an attacker-controlled system. These attacks are central to various NTLM relay attacks, allowing an attacker to impersonate a domain controller machine account or other privileged account. Offensive tools exist to take advantage of built-in and legacy protocols such as MS-EFSRPC, MS-RPRN, and various other remote procedure calls. Furthermore, services such as the Print Spooler and the WebClient service (a client-side service used to communicate with WebDav servers) can be leveraged for authentication coercion that can then be relayed to services such as LDAP on a domain controller of the AD CS Web Enrollment endpoint.</p>
+<p>One of the most well-known coercion attacks is <a href="https://support.microsoft.com/en-us/topic/kb5005413-mitigating-ntlm-relay-attacks-on-active-directory-certificate-services-ad-cs-3612b773-4043-4aa9-b23d-b87910cd3429">PetitPotam</a>. This attack allows an attacker to leverage the Encrypting File System Remote Protocol (EFSRPC) to coerce a domain controller to authenticate to a relay server. Microsoft released a patch that should be applied to ensure that this coercion attack cannot be performed as an unauthenticated user because, if not patched, this coercion method can be used for unauthenticated access direct to domain compromise when combined with an unsecured AD CS Web Enrollment endpoint, without other mitigating controls in place. This coercion method (and various others) is still possible with valid domain credentials using built-in/default Remote Procedure Calls (RPCs) when patched. RPC filters can be applied to harden against these coercion methods but are outside the scope of this module.</p>
+<p>Aside from ensuring the patch is in place to prevent the PetitPotam coercion attack from an unauthenticated standpoint, the Print Spooler service should be disabled on domain controllers as it leaves them open to coercion attacks using the PrinterBug (or MS-RPRN abuse). On a domain controller we can use PowerShell to check if the Print Spooler service is running.</p>
+<pre><code class="lang-powershell-session">PS C:\htb Get-Service -Name spooler | <span class="hljs-keyword">Select</span>-<span class="hljs-keyword">Object</span> <span class="hljs-keyword">Status</span>
+
+ <span class="hljs-keyword">Status</span>
+ <span class="hljs-comment">------</span>
+Running
+</code></pre>
+<p>We can then stop the service and modify it so the service does not start at boot.</p>
+<pre><code class="lang-powershell-session">PS C:\htb&gt; Stop-Service spooler -Force; <span class="hljs-keyword">Set</span>-Service <span class="hljs-comment">spooler -StartupType Disabled -Verbose</span>
+
+VERBOSE: Performing <span class="hljs-comment">the operation</span> <span class="hljs-comment">"Set-Service"</span><span class="hljs-comment"> on target</span> <span class="hljs-comment">"Print Spooler (spooler)"</span><span class="hljs-comment">.</span>
+</code></pre>
+<p>Verify the spooler service&#39;s status to ensure it was properly disabled.</p>
+<pre><code class="lang-powershell-session">PS <span class="hljs-keyword">C</span>:\htb&gt; (<span class="hljs-keyword">Get</span>-CimInstance -ClassName Win32_Service -Filter <span class="hljs-string">"Name='spooler'"</span>).StartMode
+
+Disabled
+</code></pre>
+<p>Coercion attacks that are possible once a foothold is obtained will be covered in a later module in this path.</p>
+<hr>
+<h3 id="vulnerable-services-applications-leading-to-remote-code-execution-rce-">Vulnerable Services/Applications Leading to Remote Code Execution (RCE)</h3>
+<p>Another method for gaining a foothold in a domain is by exploiting a vulnerable service or application and either gaining a low privileged session on a domain-joined host and then elevating to <code>NT Authority\SYSTEM</code> (SYSTEM), or the LocalSystem built-in account, or an exploit that results in direct to SYSTEM access if the application or service is running as this all-powerful account. When an attacker obtains SYSTEM-level access on a domain-joined host, this can be leveraged nearly the same as any standard domain user account because this grants them control over a computer account (i.e., <code>WS01$</code>), which can be used for authenticated and enumeration. Below is a real-world scenario to illustrate this example and the importance of patching:</p>
+<p>&#x20;    During a penetration test, I was able to exploit a vulnerable version of an application server to gain access as the SYSTEM account. I was then able to leverage this access to obtain the contents of the local SAM database, including the NTLM password hash of the machine account for the domain-joined machine. This was then used to map out the domain using BloodHound and then perform a Kerberoasting attack, resulting in cracking the password for a Domain Admin user due to a weak password policy for privileged users.</p>
+<hr>
+<h3 id="default-credentials-or-null-authentication">Default Credentials or Null Authentication</h3>
+<p>Weak/default credentials plague even the most hardened environments. When present, this may lead to an attacker being able to abuse built-in functionality to obtain a foothold as a standard domain user (if a service or application is set up to run in their context) or the SYSTEM account per the previous example. Some real-world examples include:</p>
+<ul>
+<li>Gaining access to a printer or another system that connects to the domain using LDAP. Some systems have an LDAP connection tester that can be configured to point to an attacker-controlled host and then transmit credentials for the LDAP service account in clear text to the attacker.</li>
+<li>Default credentials or lack of authentication on services such as Tomcat, Jenkins, WebLogic, Splunk, various ManageEngine tools, and many others may result in a foothold via web shell/reverse shell upload or by abusing scripting functionality.</li>
+</ul>
+<p>A common scenario during penetration tests is running across an application configured for a demo and then forgotten. I have encountered this many times. Some notable examples include a Splunk Enterprise free trial that converted to a free license when left running. The free version of Splunk does not require authentication. It can be used to deploy a malicious Splunk app, resulting in remote code execution and a foothold if the machine is domain-joined (I have encountered passwordless Splunk running in the context of a Domain Admin!). Another common scenario is finding one of various ManageEngine products with the default <code>admin:admin</code> credential pair. Various of these products can then be used to run operating system commands via scripts or the API on the underlying system itself or systems managed by the tool. Another of these products, used ironically for AD management, can be leveraged to create domain users and even add users to elevated groups.</p>
+<p>Every organization should have a documented procedure around demo software, but at the very least, the first step during deployment should be changing the default credentials to avoid leaving a gaping hole in an otherwise well-secured environment. This scenario has played out in countless pentests, where the organization had fixed legacy misconfigurations, disabled all protocols that can be used for response spoofing attacks, and implemented controls that prevented successful password spraying, only to be compromised due to an incredibly simple attack of typing in default credentials.</p>
+<hr>
+<h3 id="open-writable-smb-shares">Open/Writable SMB Shares</h3>
+<p>Another area to ensure proper hardening is SMB shares. SMB shares are notoriously a pain point for many organizations and can be difficult to audit and gain control over. For this reason, file share permissions are often overlooked and can be a treasure trove for attackers. Open/writable shares can be leveraged in various ways to obtain a foothold. One of the most common techniques involves credential theft through the use of scripts or other malicious files placed on open or writable network shares. In such cases, an attacker can leverage these accessible shares to host files that, when accessed by an unsuspecting user, trigger outbound authentication attempts. This coercion of authentication, often through mechanisms like UNC path references or embedded resource links, can then result in the capture or relay of user credentials, enabling further compromise within the environment.</p>
+<p>Below are a few real-world examples to chew on:</p>
+<ul>
+<li>On a 2-week penetration test, I found the environment to be very well-hardened, and I did not have a foothold by day 9 of the 10-day test. In fact, the only finding I had was an open, writable file share where I had placed a malicious SCF file pointing to my attack host where a Responder instance was running to catch any incoming authentication attempts. Lo and behold, I checked, and a privileged user had visited the share that day, and I obtained their NTLMv2 password hash. I could then crack the password due to a very weak password policy, which kicked off an attack chain that ultimately resulted in domain compromise. One misconfigured share resulted in the &quot;keys to the kingdom.&quot;</li>
+<li>On another penetration test, I found various shares allowing anonymous users to read but not write to them. One of these shares contained backups of virtual machine hard disk (VMDK files). I was able to download one of these, obtain the local SAM database from the system, and dump the password hashes for all local user accounts, including the local administrator account. I then found that this local admin account was used across all systems in the same subnet, and ultimately, I was able to obtain clear text Domain Admin credentials from the Registry of one of these systems.</li>
+</ul>
+<p>Auditing file share permissions is critical, and permissions should be set with the principle of least-privilege in mind. One great tool that can be used by Blue Team cybersecurity professionals and penetration testers alike is <a href="https://github.com/NetSPI/PowerHuntShares">PowerHuntShares</a>. This PowerShell script will enumerate domain SMB share permissions, identify shares with excessive privileges, shares that provide read/write access, potentially high-risk shares, interesting shares, potential sensitive files, and more. It creates an easy-to-read HTML report and CSV files detailing each finding. Personnel can then review this report against business requirements and make necessary adjustments to harden SMB shares in the environment.</p>
+<p>I highly recommend running a tool such as PowerHuntShares (paid, enterprise, tools also exist for these purposes) quarterly to stay on top of potential SMB share issues. Even if no shares exist that can be read/written to without requiring authentication, excessive access may be found for all members of the Domain Users, and similar issues can be shored up to tighten SMB share security.</p>
+<h4 id="remediating-open-writable-smb-shares">Remediating Open/Writable SMB Shares</h4>
+<p>To effectively remediate open or writable SMB shares, it is essential to conduct regular audits (PowerHuntShares can be used) and adjust permissions to adhere to the principle of least privilege. This process involves identifying shares with excessive permissions and modifying them to ensure that only authorized users possess the necessary access. The following outlines the steps for checking and editing SMB share permissions, followed by a concrete example involving Wyrmwood Mining Co.</p>
+<p>First, PowerShell can be utilized to list all SMB shares and their associated permissions.</p>
+<pre><code class="lang-powershell-session">PS C:\htb&gt; <span class="hljs-comment"># Get all SMB shares</span>
+<span class="hljs-variable">$smbShares</span> = Get-SmbShare
+
+<span class="hljs-comment"># Iterate over each share and get its permissions</span>
+<span class="hljs-keyword">foreach</span> (<span class="hljs-variable">$share</span> <span class="hljs-keyword">in</span> <span class="hljs-variable">$smbShares</span>) {
+    <span class="hljs-built_in">Write-Host</span> <span class="hljs-string">"Share Name: $(<span class="hljs-variable">$share</span>.Name)"</span>
+    <span class="hljs-built_in">Write-Host</span> <span class="hljs-string">"Path: $(<span class="hljs-variable">$share</span>.Path)"</span>
+
+    <span class="hljs-comment"># Get the access permissions for the share</span>
+    <span class="hljs-variable">$permissions</span> = Get-SmbShareAccess -Name <span class="hljs-variable">$share</span>.Name
+
+    <span class="hljs-comment"># Display the permissions</span>
+    <span class="hljs-keyword">foreach</span> (<span class="hljs-variable">$permission</span> <span class="hljs-keyword">in</span> <span class="hljs-variable">$permissions</span>) {
+        <span class="hljs-built_in">Write-Host</span> <span class="hljs-string">"  Account: $(<span class="hljs-variable">$permission</span>.AccountName)"</span>
+        <span class="hljs-built_in">Write-Host</span> <span class="hljs-string">"  Access: $(<span class="hljs-variable">$permission</span>.AccessControlType)"</span>
+        <span class="hljs-built_in">Write-Host</span> <span class="hljs-string">"  Rights: $(<span class="hljs-variable">$permission</span>.AccessRight)"</span>
+        <span class="hljs-built_in">Write-Host</span> <span class="hljs-string">""</span>
+    }
+
+    <span class="hljs-built_in">Write-Host</span> <span class="hljs-string">"----------------------------------------"</span>
+}
+</code></pre>
+<p>Upon identifying shares with excessive permissions, the <a href="https://learn.microsoft.com/en-us/powershell/module/smbshare/grant-smbshareaccess?view=windowsserver2025-ps">Grant-SmbShareAccess</a> cmdlet can be utilized to modify these permissions.</p>
+<p>For example, the <code>Revoke-SmbShareAccess</code> cmdlet should be used to remove permissions for unauthorized users or groups.</p>
+<pre><code class="lang-powershell-session"><span class="hljs-symbol">PS</span> C:\htb&gt; <span class="hljs-keyword">Revoke-SmbShareAccess </span>-Name <span class="hljs-string">"ShareName"</span> -AccountName <span class="hljs-string">"Domain\UnauthorizedUser"</span>
+</code></pre>
+<p>As for modifying existing permissions, the <code>Set-SmbShareAccess</code> cmdlet should be used.</p>
+<pre><code class="lang-powershell-session">PS <span class="hljs-keyword">C</span>:\htb&gt;  Grant-SmbShareAccess -Name <span class="hljs-string">"ShareName"</span> -AccountName <span class="hljs-string">"Domain\User"</span> -AccessRight <span class="hljs-keyword">Read</span>
+</code></pre>
+<p><strong>Scenario:</strong> At Wyrmwood Mining Co., an audit has revealed that the Marketing group possesses write and read access to the IT group&#39;s share. This situation presents a security concern, as the IT share contains sensitive configuration files and scripts that should not be modified by non-IT personnel.</p>
+<p>Steps:</p>
+<p><strong>Identify the Current Permissions</strong>: Verifying the current permissions on the <code>IT</code> share is necessary to confirm that the <code>Marketing</code> group has write access.</p>
+<pre><code class="lang-powershell-session">PS C:\htb&gt; <span class="hljs-comment"># Verify permissions for the IT share</span>
+<span class="hljs-variable">$shareName</span> = <span class="hljs-string">"IT"</span>
+<span class="hljs-variable">$permissions</span> = Get-SmbShareAccess -Name <span class="hljs-variable">$shareName</span>
+
+<span class="hljs-keyword">foreach</span> (<span class="hljs-variable">$permission</span> <span class="hljs-keyword">in</span> <span class="hljs-variable">$permissions</span>) {
+    <span class="hljs-built_in">Write-Host</span> <span class="hljs-string">"Account: $(<span class="hljs-variable">$permission</span>.AccountName)"</span>
+    <span class="hljs-built_in">Write-Host</span> <span class="hljs-string">"Access: $(<span class="hljs-variable">$permission</span>.AccessControlType)"</span>
+    <span class="hljs-built_in">Write-Host</span> <span class="hljs-string">"Rights: $(<span class="hljs-variable">$permission</span>.AccessRight)"</span>
+    <span class="hljs-built_in">Write-Host</span> <span class="hljs-string">""</span>
+}
+
+Account: wyrmwood\IT
+Access: Allow
+Rights: Full
+
+Account: wyrmwood\Marketing
+Access: Allow
+Rights: Full
+</code></pre>
+<p><strong>Revoke Write Access for the Marketing Group</strong>: The <code>Revoke-SmbShareAccess</code> cmdlet should be used to remove the <code>Marketing</code> group&#39;s write access to the <code>IT</code> share.</p>
+<pre><code class="lang-powershell-session">PS C:\htb&gt; # Revoke <span class="hljs-keyword">all</span> <span class="hljs-keyword">access</span> rights <span class="hljs-keyword">for</span> the Marketing <span class="hljs-keyword">group</span>
+Revoke-SmbShareAccess -Name <span class="hljs-string">"IT"</span> -AccountName <span class="hljs-string">"wyrmwood.local\Marketing"</span>
+</code></pre>
+<p><strong>Verify the Changes</strong>: After implementing the changes, verification of the permissions is necessary to ensure they are correctly set.</p>
+<pre><code class="lang-powershell-session">PS C:\htb&gt; <span class="hljs-comment"># Verify the updated permissions</span>
+<span class="hljs-variable">$updatedPermissions</span> = Get-SmbShareAccess -Name <span class="hljs-variable">$shareName</span>
+
+<span class="hljs-keyword">foreach</span> (<span class="hljs-variable">$permission</span> <span class="hljs-keyword">in</span> <span class="hljs-variable">$updatedPermissions</span>) {
+    <span class="hljs-built_in">Write-Host</span> <span class="hljs-string">"Account: $(<span class="hljs-variable">$permission</span>.AccountName)"</span>
+    <span class="hljs-built_in">Write-Host</span> <span class="hljs-string">"Access: $(<span class="hljs-variable">$permission</span>.AccessControlType)"</span>
+    <span class="hljs-built_in">Write-Host</span> <span class="hljs-string">"Rights: $(<span class="hljs-variable">$permission</span>.AccessRight)"</span>
+    <span class="hljs-built_in">Write-Host</span> <span class="hljs-string">""</span>
+}
+</code></pre>
+<hr>
+<h3 id="asreproasting-do-not-require-kerberos-preauthentication-">ASREPRoasting (Do not require Kerberos preauthentication)</h3>
+<p>When an account in Active Directory is configured with the option <a href="https://www.tenable.com/blog/how-to-stop-the-kerberos-pre-authentication-attack-in-active-directory">Do not require Kerberos preauthentication</a>, an attacker can obtain a Kerberos Ticket Granting Ticket (TGT) for this account. This is not a default setting but is found occasionally in Active Directory environments, typically due to vendor installation guides that specify that a service account must be configured in this way. An attack called ASREPRoasting can be performed as any standard domain user to retrieve an authentication service reply (ASREP) encrypted with the account&#39;s passwords. This encrypted TGT can then be subjected to an offline password cracking attack to attempt to retrieve the clear text password if the account has a weak password set.</p>
+<p>This attack can also be performed from an unauthenticated standpoint to obtain a foothold in Active Directory. All that is needed is a list of valid domain user accounts, which could be retrieved via one of the unauthenticated recon/enumeration weaknesses discussed earlier or via a username brute-forcing attack. A username brute-forcing attack can be performed against a domain controller without the fear of unlocking accounts. If the domain is configured to use common naming conventions such as <code>jsmith</code> (flast) or <code>john.smith</code> (first.last), then username enumeration can lead to gathering many valid usernames. This can be combined with enumeration of public information such as email addresses and creating username mashups from the company&#39;s LinkedIn page to increase the size of the valid user list. If accounts use a non-standard naming convention, for example, <code>a500b</code> or some other randomized string, then username enumeration utilizing this method would be much more difficult unless an attacker can determine the naming convention and write a script to create all possible username combinations. If this is the case, an attacker could obtain a list of almost every account in the domain fairly easily, so there is a tradeoff as it is more difficult to determine a non-standard username naming convention if the environment is extremely well-hardened.</p>
+<p>This attack can be performed with various Windows and Linux-based open-source tools and, while less common than other attacks, should be checked for and hardened against unless an account with this setting is essential for business operations. If necessary, the account password should be highly complex (i.e., 24+ characters) to make offline brute-forcing near impossible.</p>
+<p>Let&#39;s look at this setting on an account in Active Directory Users and Computers.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/306/kerberospreauth.png" alt="svc-backup Properties, Account tab showing user logon name, account options for Kerberos encryption, and account expiration settings."></p>
+<p>This can also be enumerated quickly using PowerShell.</p>
+<pre><code class="lang-powershell-session">PS <span class="hljs-string">C:</span>\htb&gt; Get-ADUSer -Filter { DoesNotRequirePreAuth -eq $<span class="hljs-literal">true</span> } 
+
+
+<span class="hljs-string">DistinguishedName :</span> CN=svc-backup,OU=CORP,DC=wyrmwood,DC=local
+<span class="hljs-string">Enabled           :</span> True
+<span class="hljs-string">GivenName         :</span> 
+<span class="hljs-string">Name              :</span> svc-backup
+<span class="hljs-string">ObjectClass       :</span> user
+<span class="hljs-string">ObjectGUID        :</span> e6dd06b5-be99<span class="hljs-number">-4</span>f14<span class="hljs-number">-91</span>b4-f9b37d9ff2fe
+<span class="hljs-string">SamAccountName    :</span> svc-backup
+<span class="hljs-string">SID               :</span> S<span class="hljs-number">-1</span><span class="hljs-number">-5</span><span class="hljs-number">-21</span><span class="hljs-number">-4224103978</span><span class="hljs-number">-2167381293</span><span class="hljs-number">-87540182</span><span class="hljs-number">-1134</span>
+<span class="hljs-string">Surname           :</span> 
+<span class="hljs-string">UserPrincipalName :</span>
+</code></pre>
+<h4 id="remediating-asreproasting-do-not-require-kerberos-preauthentication-">Remediating ASREPRoasting (Do not require Kerberos preauthentication)</h4>
+<p>This setting can be easily disabled by unticking the box in Active Directory computers and users. It can also be remediated for either a single user account or all accounts with this setting applied using PowerShell. Below, we are disabling this option for a single account.</p>
+<pre><code class="lang-powershell-session">PS <span class="hljs-keyword">C</span>:\htb&gt; <span class="hljs-keyword">Get</span>-ADUser -<span class="hljs-keyword">Identity</span> svc-backup | <span class="hljs-keyword">Set</span>-ADAccountControl -DoesNotRequirePreAuth $false -<span class="hljs-keyword">Verbose</span>
+
+VERBOSE: Performing the operation <span class="hljs-string">"Set"</span> on target <span class="hljs-string">"CN=svc-backup,OU=CORP,DC=wyrmwood,DC=local"</span>.
+</code></pre>
+<p>This can also be performed against all accounts in the domain with this setting in place if it is not required for any account.</p>
+<pre><code class="lang-powershell-session">PS C:\htb&gt; <span class="hljs-keyword">Get</span>-ADUser -<span class="hljs-built_in">Filter</span> { DoesNotRequirePreAuth -eq $<span class="hljs-literal">true</span> } | <span class="hljs-keyword">Set</span>-ADAccountControl -DoesNotRequirePreAuth $<span class="hljs-literal">false</span> -Verbose
+
+VERBOSE: Performing the operation <span class="hljs-string">"Set"</span> <span class="hljs-keyword">on</span> target <span class="hljs-string">"CN=svc-backup,OU=CORP,DC=wyrmwood,DC=local"</span>.
+VERBOSE: Performing the operation <span class="hljs-string">"Set"</span> <span class="hljs-keyword">on</span> target <span class="hljs-string">"CN=Tina Reyes,OU=CORP,DC=wyrmwood,DC=local"</span>.
+</code></pre>
+<p>Once again, if this setting is required for day-to-day business operations, then it would be best to put in place layered controls to prevent unauthenticated username enumeration, detection alerting/response capabilities to catch an attacker performing username brute forcing, and setting complex passwords for any account with this setting applied. It is also a good idea to periodically run the command <code>Get-ADUSer -Filter { DoesNotRequirePreAuth -eq $true }</code> and determine if any accounts have preauthentication set as not required that no longer need this setting.</p>
+<hr>
+<h3 id="closing-out">Closing Out</h3>
+<p>In this section, we covered various other common initial access vectors. Though this list is not all-encompassing (i.e., different attacks, such as web application attacks, think SQL Injection, may be leveraged for a foothold), we covered some critical ones that can be considered &quot;quick wins&quot; for hardening your environment. The password policy should be reviewed periodically to ensure that it properly reflects the needs of the organization and provides adequate security against password guessing attacks; MFA should be leveraged wherever possible, periodic reviews should be done of all services/applications that present a web management interface to ensure no weak/default credentials (or null authentication) are present, and periodic in-depth reviews of file share permissions can go a long way towards securing against unauthorized access or sensitive data disclosure.</p>
+<p>The following section will cover hardening considerations for the key issues discussed in this module. Every organization is different, and not every remediation can be applied similarly across all organizations. Administrators should clearly understand the implications of any fixes and test them thoroughly to ensure no disruptions occur. Some issues will require creative workarounds or additional mitigations to prevent abuse due to budget or operational constraints. Penetration testers should also understand this and help their clients with actionable remediation or mitigation recommendations if &quot;just turn it off&quot; doesn&#39;t fly.</p>
+<hr>
+<h2 id="ad-hardening-recon-initial-access-hardening-considerations">AD Hardening - Recon &amp; Initial Access - Hardening Considerations</h2>
+<hr>
+<p>Penetration test reports are often chock-full of remediation recommendations, and some penetration testers may recommend fixes without taking into account the bigger picture such as business requirements, staffing issues, or the potential issues that could be caused by modifying certain settings instead of accepting the risk and implementing other mitigating controls to reduce or eliminate the risk of exploitation within the environment. Below is a table that walks through various hardening actions, the potential breakage that could occur, and considerations for administrators before/while researching and testing remediations. This does not cover every potential issue that could arise because each environment is unique but this is a great quick reference guide for when a pentest report lands on your desk with the mandate &quot;fix everything&quot;.</p>
+<p>The table below provides a structured breakdown of hardening actions often recommended during post-engagement remediation.</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Hardening Action</th>
+<th>Potential Breakage</th>
+<th>Administrator Considerations</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>SMB Null Session</td>
+<td>Legacy tools/scripts relying on anonymous access to IPC$</td>
+<td>Check management tools and scripts; test with legacy apps</td>
+</tr>
+<tr>
+<td>2</td>
+<td>LDAP Anonymous Bind</td>
+<td>Apps or tools querying LDAP without authentication</td>
+<td>Identify and test all apps using unauthenticated LDAP</td>
+</tr>
+<tr>
+<td>3</td>
+<td>LLMNR</td>
+<td>Hostname resolution in DNS-less or flat networks</td>
+<td>Ensure proper DNS setup; disable only if DNS is reliable</td>
+</tr>
+<tr>
+<td>4</td>
+<td>NBT-NS</td>
+<td>Legacy name resolution for older systems</td>
+<td>Check legacy printers, scanners, and multi-homed networks</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Disable mDNS Broadcast</td>
+<td>Apple devices, AirPrint, smart devices discovery</td>
+<td>Impacts Bonjour-based services</td>
+</tr>
+<tr>
+<td>6</td>
+<td>MachineAccountQuota = 0</td>
+<td>Users can’t join machines to the domain</td>
+<td>Affects dev/test environments or hybrid join setups</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Strengthen Password Policy</td>
+<td>Forces password changes; older systems may fail authentication</td>
+<td>Consider service/shared accounts and embedded creds</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Enforce SMB Signing</td>
+<td>Older clients and non-compliant devices fail to connect</td>
+<td>Test compatibility and monitor performance</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Enforce LDAP Signing</td>
+<td>Breaks apps using simple binds or plaintext LDAP</td>
+<td>Use audit mode first; validate each integration</td>
+</tr>
+<tr>
+<td>10</td>
+<td>RID Brute Force Mitigation</td>
+<td>May block legitimate LDAP requests if aggressively filtered</td>
+<td>Use detection over prevention; monitor for false positives</td>
+</tr>
+<tr>
+<td>11</td>
+<td>Remove &quot;Everyone&quot; from Pre-Win2k Group</td>
+<td>Breaks low-priv enumeration; impacts some security tools</td>
+<td>Impacts BloodHound, legacy identity tools</td>
+</tr>
+<tr>
+<td>12</td>
+<td>Disable IPv6</td>
+<td>Can break AD-integrated DNS, Kerberos, clustering</td>
+<td>Microsoft advises against disabling without extensive testing</td>
+</tr>
+<tr>
+<td>13</td>
+<td>Disable NTLM</td>
+<td>Legacy apps, NAS devices, printers may stop authenticating</td>
+<td>Use <code>AuditNTLMInDomain</code> GPO first, migrate apps gradually</td>
+</tr>
+<tr>
+<td>14</td>
+<td>Disable Print Spooler Service</td>
+<td>Remote printing and GPO-deployed printers won&#39;t work</td>
+<td>Safe to disable only on DCs and non-print servers</td>
+</tr>
+<tr>
+<td>15</td>
+<td>Restrict File Share Access</td>
+<td>Shared folders, logon scripts, and mapped drives may fail</td>
+<td>Inventory access needs; audit share usage first</td>
+</tr>
+<tr>
+<td>16</td>
+<td>Change Default Credentials</td>
+<td>Embedded creds or default login dependencies fail</td>
+<td>Locate and update hardcoded credentials</td>
+</tr>
+<tr>
+<td>17</td>
+<td>Require Kerberos Pre-Authentication</td>
+<td>Legacy systems or non-domain systems may break</td>
+<td>Validate SPN-based service accounts</td>
+</tr>
+<tr>
+<td>18</td>
+<td>Patch Coercion Methods (e.g., PetitPotam)</td>
+<td>Backup software or legacy services relying on RPC/COM triggers may fail</td>
+<td>Patch carefully and test VSS, backup, or print services</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h3 id="close-out">Close Out</h3>
+<p>We&#39;ve now talked through the most prevalent methods that penetration testers and real-world attackers could leverage to perform unauthenticated enumeration of the domain and gain initial access (a foothold). This foothold can then be leveraged to perform authenticated enumeration and mount further attacks that may result in lateral movement/compromise of individual systems or domain compromise and unrestricted access, or the &quot;keys to the kingdom&quot;. A deep understanding of these issues as well as hands-on practice in a safe lab environment are critical for anyone charged with administering and securing Active Directory. These can help with preparing/hardening before a penetration test or being able to easily understand a penetration test report and swiftly and accurately implement remediation recommendations or mitigating controls.</p>
+<p>In the final section, we will work through a list of penetration test findings, fixing each in a live AD environment, and checking our work as we go.</p>
+<hr>

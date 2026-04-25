@@ -1,0 +1,831 @@
+
+<body>
+  <div class="container">
+<link rel="stylesheet" href="style.css">
+
+
+<h1 id="using-web-proxies">Using Web Proxies</h1>
+<h2 id="cheat-sheet">Cheat Sheet</h2>
+<p>The cheat sheet is a useful command reference for this module.</p>
+<h2 id="burp-shortcuts">Burp Shortcuts</h2>
+<table>
+<thead>
+<tr>
+<th><strong>Shortcut</strong></th>
+<th><strong>Description</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>[<code>CTRL+R</code>]</td>
+<td>Send to repeater</td>
+</tr>
+<tr>
+<td>[<code>CTRL+SHIFT+R</code>]</td>
+<td>Go to repeater</td>
+</tr>
+<tr>
+<td>[<code>CTRL+I</code>]</td>
+<td>Send to intruder</td>
+</tr>
+<tr>
+<td>[<code>CTRL+SHIFT+I</code>]</td>
+<td>Go to intruder</td>
+</tr>
+<tr>
+<td>[<code>CTRL+U</code>]</td>
+<td>URL encode</td>
+</tr>
+<tr>
+<td>[<code>CTRL+SHIFT+U</code>]</td>
+<td>URL decode</td>
+</tr>
+</tbody>
+</table>
+<h2 id="zap-shortcuts">ZAP Shortcuts</h2>
+<table>
+<thead>
+<tr>
+<th><strong>Shortcut</strong></th>
+<th><strong>Description</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>[<code>CTRL+B</code>]</td>
+<td>Toggle intercept on/off</td>
+</tr>
+<tr>
+<td>[<code>CTRL+R</code>]</td>
+<td>Go to replacer</td>
+</tr>
+<tr>
+<td>[<code>CTRL+E</code>]</td>
+<td>Go to encode/decode/hash</td>
+</tr>
+</tbody>
+</table>
+<h2 id="firefox-shortcuts">Firefox Shortcuts</h2>
+<table>
+<thead>
+<tr>
+<th><strong>Shortcut</strong></th>
+<th><strong>Description</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>[<code>CTRL+SHIFT+R</code>]</td>
+<td>Force Refresh Page</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="intro-to-web-proxies">Intro to Web Proxies</h2>
+<hr>
+<p>Today, most modern web and mobile applications work by continuously connecting to back-end servers to send and receive data and then processing this data on the user&#39;s device, like their web browsers or mobile phones. With most applications heavily relying on back-end servers to process data, testing and securing the back-end servers is quickly becoming more important.</p>
+<p>Testing web requests to back-end servers make up the bulk of Web Application Penetration Testing, which includes concepts that apply to both web and mobile applications. To capture the requests and traffic passing between applications and back-end servers and manipulate these types of requests for testing purposes, we need to use <code>Web Proxies</code>.</p>
+<hr>
+<h3 id="what-are-web-proxies-">What Are Web Proxies?</h3>
+<p>Web proxies are specialized tools that can be set up between a browser/mobile application and a back-end server to capture and view all the web requests being sent between both ends, essentially acting as man-in-the-middle (MITM) tools. While other <code>Network Sniffing</code> applications, like Wireshark, operate by analyzing all local traffic to see what is passing through a network, Web Proxies mainly work with web ports such as, but not limited to, <code>HTTP/80</code> and <code>HTTPS/443</code>.</p>
+<p>Web proxies are considered among the most essential tools for any web pentester. They significantly simplify the process of capturing and replaying web requests compared to earlier CLI-based tools. Once a web proxy is set up, we can see all HTTP requests made by an application and all of the responses sent by the back-end server. Furthermore, we can intercept a specific request to modify its data and see how the back-end server handles them, which is an essential part of any web penetration test.</p>
+<hr>
+<h3 id="uses-of-web-proxies">Uses of Web Proxies</h3>
+<p>While the primary use of web proxies is to capture and replay HTTP requests, they have many other features that enable different uses for web proxies. The following list shows some of the other tasks we may use web proxies for:</p>
+<ul>
+<li>Web application vulnerability scanning</li>
+<li>Web fuzzing</li>
+<li>Web crawling</li>
+<li>Web application mapping</li>
+<li>Web request analysis</li>
+<li>Web configuration testing</li>
+<li>Code reviews</li>
+</ul>
+<p>In this module, we will not discuss any specific web attacks, as other HTB Academy web modules cover various web attacks. However, we will thoroughly cover how to use web proxies and their various features and mention which type of web attacks require which feature. We will be covering the two most common web proxy tools: <code>Burp Suite</code> and <code>ZAP</code>.</p>
+<hr>
+<h3 id="burp-suite">Burp Suite</h3>
+<p><a href="https://portswigger.net/burp">Burp Suite (Burp)</a> -pronounced Burp Sweet- is the most common web proxy for web penetration testing. It has an excellent user interface for its various features and even provides a built-in Chromium browser to test web applications. Certain Burp features are only available in the commercial version <code>Burp Pro/Enterprise</code>, but even the free version is an extremely powerful testing tool to keep in our arsenal.</p>
+<p>Some of the <code>paid-only</code> features are:</p>
+<ul>
+<li>Active web app scanner</li>
+<li>Fast Burp Intruder</li>
+<li>The ability to load certain Burp Extensions</li>
+</ul>
+<p>The community <code>free</code> version of Burp Suite should be enough for most penetration testers. Once we start more advanced web application penetration testing, the <code>pro</code> features may become handy. Most of the features we will cover in this module are available in the community <code>free</code> version of Burp Suite, but we will also touch upon some of the <code>pro</code> features, like the Active Web App Scanner.</p>
+<p>Tip: If you have an educational or business email address, then you can apply for a free trial of Burp Pro at this <a href="https://portswigger.net/burp/pro/trial">link</a> to be able to follow along with some of the Burp Pro only features showcased later in this module.</p>
+<hr>
+<h3 id="owasp-zed-attack-proxy-zap-">OWASP Zed Attack Proxy (ZAP)</h3>
+<p><a href="https://www.zaproxy.org/">OWASP Zed Attack Proxy (ZAP)</a> is another common web proxy tool for web penetration testing. ZAP is a free and open-source project initiated by the <a href="https://owasp.org/">Open Web Application Security Project (OWASP)</a> and maintained by the community, so it has no paid-only features as Burp does. It has grown significantly over the past few years and is quickly gaining market recognition as the leading open-source web proxy tool.</p>
+<p>Just like Burp, ZAP provides various basic and advanced features that can be utilized for web pentesting. ZAP also has certain strengths over Burp, which we will cover throughout this module. The main advantage of ZAP over Burp is being a free, open-source project, which means that we will not face any throttling or limitations in our scans that are only lifted with a paid subscription. Furthermore, with a growing community of contributors, ZAP is gaining many of the paid-only Burp features for free.</p>
+<p>In the end, learning both tools can be quite similar and will provide us with options for every situation through a web pentest, and we can choose to use whichever one we find more suitable for our needs. In some instances, we may not see enough value to justify a paid Burp subscription, and we may switch to ZAP to have a completely open and free experience. In other situations where we want a more mature solution for advanced pentests or corporate pentesting, we may find the value provided by Burp Pro to be justified and may switch to Burp for these features.</p>
+<hr>
+<h2 id="setting-up">Setting Up</h2>
+<hr>
+<p>Both Burp and ZAP are available for Windows, macOS, and any Linux distribution. Both are already installed on your PwnBox instance and can be accessed from the bottom dock or top bar menu. Both tools are pre-installed on common Penetration Testing Linux distributions like Parrot or Kali. We will cover the installation and setup process for Burp and Zap in this section which will be helpful if we want to install the tools on our own VM.</p>
+<hr>
+<h3 id="burp-suite">Burp Suite</h3>
+<p>If Burp is not pre-installed in our VM, we can start by downloading it from <a href="https://portswigger.net/burp/releases/">Burp&#39;s Download Page</a>. Once downloaded, we can run the installer and follow the instructions, which vary from one operating system to another, but should be pretty straightforward. There are installers for Windows, Linux, and macOS.</p>
+<p>Once installed, Burp can either be launched from the terminal by typing <code>burpsuite</code>, or from the application menu as previously mentioned. Another option is to download the <code>JAR</code> file (which can be used on all operating systems with a Java Runtime Environment (JRE) installed) from the above downloads page. We can run it with the following command line or by double-clicking it:</p>
+<pre><code class="lang-shell-session">root<span class="hljs-variable">@htb</span>[<span class="hljs-regexp">/htb]$ java -jar &lt;/path</span><span class="hljs-regexp">/to/burpsuite</span>.jar&gt;
+</code></pre>
+<p>Note: Both Burp and ZAP rely on Java Runtime Environment to run, but this package should be included in the installer by default. If not, we can follow the instructions found on this <a href="https://docs.oracle.com/goldengate/1212/gg-winux/GDRAD/java.htm">page</a>.</p>
+<p>Once we start up Burp, we are prompted to create a new project. If we are running the community version, we would only be able to use temporary projects without the ability to save our progress and carry on later:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_project_community.jpg" alt="Burp Suite Community Edition project setup screen. Options for temporary project, new project on disk, or open existing project. Note: Disk-based projects supported only in Professional version. Buttons for &quot;Cancel&quot; and &quot;Next.&quot;"></p>
+<p>If we are using the pro/enterprise version, we will have the option to either start a new project or open an existing project.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_project_prof.jpg" alt="Burp Suite Professional project setup screen. Options for temporary project, new project on disk, or open existing project. Fields for name and file selection. Buttons for &quot;Cancel&quot; and &quot;Next.&quot;"></p>
+<p>We may need to save our progress if we were pentesting huge web applications or running an <code>Active Web Scan</code>. However, we may not need to save our progress and, in many cases, can start a <code>temporary</code> project every time.</p>
+<p>So, let&#39;s select <code>temporary project</code>, and click continue. Once we do, we will be prompted to either use <code>Burp Default Configurations</code>, or to <code>Load a Configuration File</code>, and we&#39;ll choose the first option:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_project_config.jpg" alt="Burp Suite Community Edition configuration screen. Options to use Burp defaults, use project options, or load from configuration file. File selection available. Checkboxes for default settings and disabling extensions. Buttons for &quot;Cancel,&quot; &quot;Back,&quot; and &quot;Start Burp.&quot;"></p>
+<p>Once we start heavily utilizing Burp&#39;s features, we may want to customize our configurations and load them when starting Burp. For now, we can keep <code>Use Burp Defaults</code>, and <code>Start Burp</code>. Once all of this is done, we should be ready to start using Burp.</p>
+<hr>
+<h3 id="zap">ZAP</h3>
+<p>We can download ZAP from its <a href="https://www.zaproxy.org/download/">download page</a>, choose the installer that fits our operating system, and follow the basic installation instructions to get it installed. ZAP can also be downloaded as a cross-platform JAR file and launched with the <code>java -jar</code> command or by double-clicking on it, similarly to Burp.</p>
+<p>To get started with ZAP, we can launch it from the terminal with the <code>zaproxy</code> command or access it from the application menu like Burp. Once ZAP starts up, unlike the free version of Burp, we will be prompted to either create a new project or a temporary project. Let&#39;s use a temporary project by choosing <code>no</code>, as we will not be working on a big project that we will need to persist for several days:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/zap_new_project.jpg" alt="ZAP Session persistence options. Choices: persist with timestamp, specify name and location, or not persist. Checkbox to remember choice. Buttons for &quot;Help&quot; and &quot;Start.&quot;"></p>
+<p>After that, we will have ZAP running, and we can continue the proxy setup process, as we will discuss in the next section.</p>
+<p>Tip: If you prefer to use to a dark theme, you may do so in Burp by going to (<code>User Options&gt;Display</code>) and selecting &quot;dark&quot; under (<code>theme</code>), and in ZAP by going to (<code>Tools&gt;Options&gt;Display</code>) and selecting &quot;Flat Dark&quot; in (<code>Look and Feel</code>).</p>
+<hr>
+<h2 id="proxy-setup">Proxy Setup</h2>
+<hr>
+<p>Now that we have installed and started both tools, we&#39;ll learn how to use the most commonly used feature; <code>Web Proxy</code>.</p>
+<p>We can set up these tools as a proxy for any application, such that all web requests would be routed through them so that we can manually examine what web requests an application is sending and receiving. This will enable us to understand better what the application is doing in the background and allows us to intercept and change these requests or reuse them with various changes to see how the application responds.</p>
+<hr>
+<h3 id="pre-configured-browser">Pre-Configured Browser</h3>
+<p>To use the tools as web proxies, we must configure our browser proxy settings to use them as the proxy or use the pre-configured browser. Both tools have a pre-configured browser that comes with pre-configured proxy settings and the CA certificates pre-installed, making starting a web penetration test very quick and easy.</p>
+<p>In Burp&#39;s (<code>Proxy&gt;Intercept</code>), we can click on <code>Open Browser</code>, which will open Burp&#39;s pre-configured browser, and automatically route all web traffic through Burp: <img src="https://academy.hackthebox.com/storage/modules/110/burp_preconfigured_browser.jpg" alt="Burp Suite Proxy tab with Intercept off. Option to use Burp&#39;s embedded browser. Button to &quot;Open browser.&quot; Navigation includes Dashboard, Target, Proxy, and more."></p>
+<p>In ZAP, we can click on the Firefox browser icon at the end of the top bar, and it will open the pre-configured browser:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/zap_preconfigured_browser.jpg" alt="Toolbar with various icons. Tooltip: &quot;Open the browser you&#39;ve chosen in the Quick Start tab pre-configured to proxy through ZAP.&quot;"></p>
+<p>For our uses in this module, using the pre-configured browser should be enough.</p>
+<hr>
+<h3 id="proxy-setup">Proxy Setup</h3>
+<p>In many cases, we may want to use a real browser for pentesting, like Firefox. To use Firefox with our web proxy tools, we must first configure it to use them as the proxy. We can manually go to Firefox preferences and set up the proxy to use the web proxy listening port. Both Burp and ZAP use port <code>8080</code> by default, but we can use any available port. If we choose a port that is in use, the proxy will fail to start, and we will receive an error message.</p>
+<p>Note: In case we wanted to serve the web proxy on a different port, we can do that in Burp under (<code>Proxy&gt;Options</code>), or in ZAP under (<code>Tools&gt;Options&gt;Local Proxies</code>). In both cases, we must ensure that the proxy configured in Firefox uses the same port.</p>
+<p>Instead of manually switching the proxy, we can utilize the Firefox extension <a href="https://addons.mozilla.org/en-US/firefox/addon/foxyproxy-standard/">Foxy Proxy</a> to easily and quickly change the Firefox proxy. This extension is pre-installed in your PwnBox instance and can be installed to your own Firefox browser by visiting the <a href="https://addons.mozilla.org/en-US/firefox/addon/foxyproxy-standard/">Firefox Extensions Page</a> and clicking <code>Add to Firefox</code> to install it.</p>
+<p>Once we have the extension added, we can configure the web proxy on it by clicking on its icon on Firefox top bar and then choosing <code>options</code>:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/foxyproxy_options.jpg" alt="FoxyProxy menu with options for &quot;Options,&quot; &quot;What&#39;s My IP?&quot; and &quot;Log.&quot;"></p>
+<p>Once we&#39;re on the <code>options</code> page, we can click on <code>add</code> on the left pane, and then use <code>127.0.0.1</code> as the IP, and <code>8080</code> as the port, and name it <code>Burp</code> or <code>ZAP</code>:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/foxyproxy_add.jpg" alt="Edit Proxy Burp/ZAP settings. Fields for title, color, proxy type, IP address, port, username, and password. Buttons for &quot;Cancel,&quot; &quot;Save &amp; Add Another,&quot; &quot;Save &amp; Edit Patterns,&quot; and &quot;Save.&quot;"></p>
+<p>Note: This configuration is already added to Foxy Proxy in PwnBox, so you don&#39;t have to do this step if you are using PwnBox.</p>
+<p>Finally, we can click on the <code>Foxy Proxy</code> icon and select <code>Burp</code>/<code>ZAP</code>. <img src="https://academy.hackthebox.com/storage/modules/110/foxyproxy_use.jpg" alt="FoxyProxy menu with Burp/ZAP enabled. Options for &quot;Options,&quot; &quot;What&#39;s My IP?&quot; and &quot;Log.&quot;"></p>
+<hr>
+<h3 id="installing-ca-certificate">Installing CA Certificate</h3>
+<p>Another important step when using Burp Proxy/ZAP with our browser is to install the web proxy&#39;s CA Certificates. If we don&#39;t do this step, some HTTPS traffic may not get properly routed, or we may need to click <code>accept</code> every time Firefox needs to send an HTTPS request.</p>
+<p>We can install Burp&#39;s certificate once we select Burp as our proxy in <code>Foxy Proxy</code>, by browsing to <code>http://burp</code>, and download the certificate from there by clicking on <code>CA Certificate</code>:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_cert.jpg" alt="Burp Suite Community Edition header with &#39;CA Certificate&#39; button."></p>
+<p>To get ZAP&#39;s certificate, we can go to (<code>Tools&gt;Options&gt;Dynamic SSL Certificate</code>), then click on <code>Save</code>:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/zap_cert.jpg" alt="Dynamic SSL Certificates window with options list, certificate text, and &#39;Generate&#39;, &#39;Import&#39;, &#39;View&#39;, &#39;Save&#39; buttons."></p>
+<p>We can also change our certificate by generating a new one with the <code>Generate</code> button.</p>
+<p>Once we have our certificates, we can install them within Firefox by browsing to <a href="about:preferences#privacy">about:preferences#privacy</a>, scrolling to the bottom, and clicking <code>View Certificates</code>:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/firefox_cert.jpg" alt="Certificate settings with options for automatic selection, asking every time, OCSP query, and buttons for &#39;View Certificates&#39; and &#39;Security Devices&#39;."></p>
+<p>After that, we can select the <code>Authorities</code> tab, and then click on <code>import</code>, and select the downloaded CA certificate:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/firefox_import_cert.jpg" alt="Certificate Manager window showing Authorities tab with certificate list and options to View, Edit Trust, Import, Export, and Delete."></p>
+<p>Finally, we must select <code>Trust this CA to identify websites</code> and <code>Trust this CA to identify email users</code>, and then click OK: <img src="https://academy.hackthebox.com/storage/modules/110/firefox_trust_cert.jpg" alt="Downloading Certificate dialog asking to trust &#39;PortSwigger CA&#39; for websites and email, with options to View, Examine, Cancel, and OK."></p>
+<p>Once we install the certificate and configure the Firefox proxy, all Firefox web traffic will start routing through our web proxy.</p>
+<p>\</p>
+<hr>
+<h2 id="intercepting-web-requests">Intercepting Web Requests</h2>
+<hr>
+<p>Now that we have set up our proxy, we can use it to intercept and manipulate various HTTP requests sent by the web application we are testing. We&#39;ll start by learning how to intercept web requests, change them, and then send them through to their intended destination.</p>
+<hr>
+<h3 id="intercepting-requests">Intercepting Requests</h3>
+<p><strong>Burp</strong></p>
+<p>In Burp, we can navigate to the <code>Proxy</code> tab, and request interception should be on by default. If we want to turn request interception on or off, we may go to the <code>Intercept</code> sub-tab and click on <code>Intercept is on/off</code> button to do so:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_intercept_htb_on.jpg" alt="Proxy tab with Intercept, HTTP history, WebSockets history, and Options. Buttons: Forward, Drop, Intercept is on, Action, Open Browser."></p>
+<p>Once we turn request interception on, we can start up the pre-configured browser and then visit our target website after spawning it from the exercise at the end of this section. Then, once we go back to Burp, we will see the intercepted request awaiting our action, and we can click on <code>forward</code> to forward the request:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_intercept_page.jpg" alt="Proxy tab showing HTTP request details with buttons: Forward, Drop, Intercept is on, Action, Open Browser."></p>
+<p>Note: as all Firefox traffic will be intercepted in this case, we may see another request has been intercepted before this one. If this happens, click &#39;Forward&#39;, until we get the request to our target IP, as shown above.</p>
+<p><strong>ZAP</strong></p>
+<p>In ZAP, interception is off by default, as shown by the green button on the top bar (green indicates that requests can pass and not be intercepted). We can click on this button to turn the Request Interception on or off, or we can use the shortcut [<code>CTRL+B</code>] to toggle it on or off:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/zap_intercept_htb_on.jpg" alt="Toolbar with various icons and &#39;Standard Mode&#39; dropdown, &#39;Sites&#39; section with a plus icon."></p>
+<p>Then, we can start the pre-configured browser and revisit the exercise webpage. We will see the intercepted request in the top-right pane, and we can click on the step (right to the red <code>break</code> button) to forward the request:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/zap_intercept_page.jpg" alt="HTTP request details with &#39;Request&#39; and &#39;Break&#39; buttons, method, header, and body dropdowns."></p>
+<p>ZAP also has a powerful feature called <code>Heads Up Display (HUD)</code>, which allows us to control most of the main ZAP features from right within the pre-configured browser. We can enable the <code>HUD</code> by clicking its button at the end of the top menu bar:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/zap_enable_HUD.jpg" alt="Toolbar with icons, &#39;Standard Mode&#39; dropdown, and &#39;Sites&#39; section with a plus icon."></p>
+<p>The HUD has many features that we will cover as we go through the module. For intercepting requests, we can click on the second button from the top on the left pane to turn request interception on:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/zap_hud_break.jpg" alt="Ping interface with IP input &#39;127.0.0.0&#39;, Ping button, and side controls for sites, start, and status indicators."></p>
+<p>Note: In some versions of browsers, the ZAP&#39;s HUD might not work as intended.</p>
+<p>Now, once we refresh the page or send another request, the HUD will intercept the request and will present it to us for action:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/zap_hud_break_request.jpg" alt="HTTP Message dialog showing request details with buttons: Step, Continue, Drop."></p>
+<p>We can choose to <code>step</code> to send the request and examine its response and break any further requests, or we can choose to <code>continue</code> and let the page send the remaining requests. The <code>step</code> button is helpful when we want to examine every step of the page&#39;s functionality, while <code>continue</code> is useful when we are only interested in a single request and can forward the remaining requests once we reach our target request.</p>
+<p>Tip: The first time you use the pre-configured ZAP browser you will be presented with the HUD tutorial. You may consider taking this tutorial after this section, as it will teach you the basics of the HUD. Even if you do not grasp everything, the upcoming sections should cover whatever you missed. If you do not get the tutorial, you can click on the configuration button on the bottom right and choose &quot;Take the HUD tutorial&quot;.</p>
+<hr>
+<h3 id="manipulating-intercepted-requests">Manipulating Intercepted Requests</h3>
+<p>Once we intercept the request, it will remain hanging until we forward it, as we did above. We can examine the request, manipulate it to make any changes we want, and then send it to its destination. This helps us better understand what information a particular web application is sending in its web requests and how it may respond to any changes we make in that request.</p>
+<p>There are numerous applications for this in Web Penetration Testing, such as testing for:</p>
+<ol>
+<li>SQL injections</li>
+<li>Command injections</li>
+<li>Upload bypass</li>
+<li>Authentication bypass</li>
+<li>XSS</li>
+<li>XXE</li>
+<li>Error handling</li>
+<li>Deserialization</li>
+</ol>
+<p>And many other potential web vulnerabilities, as we will see in other web modules in HTB Academy. So, let&#39;s show this with a basic example to demonstrate intercepting and manipulating web requests.</p>
+<p>Let us turn request interception back on in the tool of our choosing, set the <code>IP</code> value on the page, then click on the <code>Ping</code> button. Once our request is intercepted, we should get a similar HTTP request to the following :</p>
+<pre><code class="lang-http"><span class="hljs-keyword">POST</span> <span class="hljs-string">/ping</span> HTTP/1.1
+<span class="hljs-attribute">Host</span>: 46.101.23.188:30820
+<span class="hljs-attribute">Content-Length</span>: 4
+<span class="hljs-attribute">Cache-Control</span>: max-age=0
+<span class="hljs-attribute">Upgrade-Insecure-Requests</span>: 1
+<span class="hljs-attribute">Origin</span>: http://46.101.23.188:30820
+<span class="hljs-attribute">Content-Type</span>: application/x-www-form-urlencoded
+<span class="hljs-attribute">User-Agent</span>: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36
+<span class="hljs-attribute">Accept</span>: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9
+<span class="hljs-attribute">Referer</span>: http://46.101.23.188:30820/
+<span class="hljs-attribute">Accept-Encoding</span>: gzip, deflate
+<span class="hljs-attribute">Accept-Language</span>: en-US,en;q=0.9
+<span class="hljs-attribute">Connection</span>: close
+
+<span class="ini"><span class="hljs-attr">ip</span>=<span class="hljs-number">1</span></span>
+</code></pre>
+<p>Typically, we can only specify numbers in the <code>IP</code> field using the browser, as the web page prevents us from sending any non-numeric characters using front-end JavaScript. However, with the power of intercepting and manipulating HTTP requests, we can try using other characters to &quot;break&quot; the application (&quot;breaking&quot; the request/response flow by manipulating the target parameter, not damaging the target web application). If the web application does not verify and validate the HTTP requests on the back-end, we may be able to manipulate it and exploit it.</p>
+<p>So, let us change the <code>ip</code> parameter&#39;s value from <code>1</code> to <code>;ls;</code> and see how the web application handles our input:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/ping_manipulate_request.jpg" alt="HTTP Message dialog showing POST request details with buttons: Step, Continue, Drop."></p>
+<p>Once we click continue/forward, we will see that the response changed from the default ping output to the <code>ls</code> output, meaning that we successfully manipulated the request to inject our command:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/ping_inject.jpg" alt="List of files: flag.txt, index.html, node\_modules, package-lock.json, public, server.js."></p>
+<p>This demonstrates a basic example of how request interception and manipulation can help with testing web applications for various vulnerabilities, which is considered an essential tool to be able to test different web applications effectively.</p>
+<p>Note: As previously mentioned, we will not be covering specific web attacks in this module, but rather how Web Proxies can facilitate various types of attacks. Other web modules in HTB Academy cover these types of attacks in depth.</p>
+<hr>
+<h2 id="intercepting-responses">Intercepting Responses</h2>
+<hr>
+<p>In some instances, we may need to intercept the HTTP responses from the server before they reach the browser. This can be useful when we want to change how a specific web page looks, like enabling certain disabled fields or showing certain hidden fields, which may help us in our penetration testing activities.</p>
+<p>So, let&#39;s see how we can achieve that with the exercise we tested in the previous section.</p>
+<p>In our previous exercise, the <code>IP</code> field only allowed us to input numeric values. If we intercept the response before it reaches our browser, we can edit it to accept any value, which would enable us to input the payload we used last time directly.</p>
+<hr>
+<h3 id="burp">Burp</h3>
+<p>In Burp, we can enable response interception by going to (<code>Proxy&gt;Options</code>) and enabling <code>Intercept Response</code> under <code>Intercept Server Responses</code>:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/response_interception_enable.jpg" alt="Intercept Server Responses settings with rules table and buttons: Add, Edit, Remove, Up, Down. Options to intercept responses and update Content-Length header."></p>
+<p>After that, we can enable request interception once more and refresh the page with [<code>CTRL+SHIFT+R</code>] in our browser (to force a full refresh). When we go back to Burp, we should see the intercepted request, and we can click on <code>forward</code>. Once we forward the request, we&#39;ll see our intercepted response:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/response_intercept_response_1_1.jpg" alt="HTML form code for &#39;Ping Your IP&#39; with input field for IP address, type number, min 1, max 255, maxlength 3."></p>
+<p>Let&#39;s try changing the <code>type=&quot;number&quot;</code> on line 27 to <code>type=&quot;text&quot;</code>, which should enable us to write any value we want. We will also change the <code>maxlength=&quot;3&quot;</code> to <code>maxlength=&quot;100&quot;</code> so we can enter longer input:</p>
+<pre><code class="lang-html">&lt;input <span class="hljs-built_in">type</span>=<span class="hljs-string">"text"</span> id=<span class="hljs-string">"ip"</span> <span class="hljs-built_in">name</span>=<span class="hljs-string">"ip"</span> <span class="hljs-built_in">min</span>=<span class="hljs-string">"1"</span> <span class="hljs-built_in">max</span>=<span class="hljs-string">"255"</span> maxlength=<span class="hljs-string">"100"</span>
+    oninput=<span class="hljs-string">"javascript: if (this.value.length &gt; this.maxLength) this.value = this.value.slice(0, this.maxLength);"</span>
+    required&gt;
+</code></pre>
+<p>Now, once we click on <code>forward</code> again, we can go back to Firefox to examine the edited response:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/response_intercept_response_2.jpg" alt="Ping interface with IP input &#39;127.0.0.0&#39; and &#39;Ping&#39; button."></p>
+<p>As we can see, we could change the way the page is rendered by the browser and can now input any value we want. We may use the same technique to persistently enable any disabled HTML buttons by modifying their HTML code.</p>
+<p>Exercise: Try using the payload we used last time directly within the browser, to test how intercepting responses can make web application penetration testing easier.</p>
+<hr>
+<h3 id="zap">ZAP</h3>
+<p>Let&#39;s try to see how we can do the same with ZAP. As we saw in the previous section, when our requests are intercepted by ZAP, we can click on <code>Step</code>, and it will send the request and automatically intercept the response:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/zap_response_intercept_response.jpg" alt="HTTP Message dialog showing response headers and HTML form code with buttons: Step, Continue, Drop."></p>
+<p>Once we make the same changes we previously did and click on <code>Continue</code>, we will see that we can also use any input value:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/ZAP_edit_response.jpg" alt="Ping interface with IP input &#39;127.0.0.0&#39; and &#39;Ping&#39; button, side controls for sites and status."></p>
+<p>However, ZAP HUD also has another powerful feature that can help us in cases like this. While in many instances we may need to intercept the response to make custom changes, if all we wanted was to enable disabled input fields or show hidden input fields, then we can click on the third button on the left (the light bulb icon), and it will enable/show these fields without us having to intercept the response or refresh the page.</p>
+<p>For example, the below web application has the <code>IP</code> input field as disabled:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/ZAP_disabled_field.jpg" alt="Ping interface with IP input &#39;127.0.0.0&#39; and &#39;Ping&#39; button, side controls for sites and status."></p>
+<p>In these cases, we can click on the <code>Show/Enable</code> button, and it will enable the button for us, and we can interact with it to add our input:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/ZAP_enable_field.jpg" alt="Ping interface with IP input &#39;127.0.0.0&#39; and &#39;Ping&#39; button, side controls for sites and status."></p>
+<p>We can similarly use this feature to show all hidden fields or buttons. <code>Burp</code> also has a similar feature, which we can enable under <code>Proxy&gt;Options&gt;Response Modification</code>, then select one of the options, like <code>Unhide hidden form fields</code>.</p>
+<p>Another similar feature is the <code>Comments</code> button, which will indicate the positions where there are HTML comments that are usually only visible in the source code. We can click on the <code>+</code> button on the left pane and select <code>Comments</code> to add the <code>Comments</code> button, and once we click on it, the <code>Comments</code> indicators should be shown. For example, the below screenshot shows an indicator for a position that has a comment, and hovering over it with our cursor shows the comment&#39;s content:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/ZAP_show_comments.jpg" alt="Ping interface with IP input &#39;127.0.0.0&#39; and &#39;Ping&#39; button, side controls for sites, status, and comments."></p>
+<p>Being able to modify how the web page looks makes it much easier for us to perform web application penetration testing in certain scenarios instead of having to send our input through an intercepted request. Next, we will see how we can automate this process to modify our changes in the response automatically so we don&#39;t have to keep intercepting and manually changing the responses.</p>
+<hr>
+<h2 id="automatic-modification">Automatic Modification</h2>
+<hr>
+<p>We may want to apply certain modifications to all outgoing HTTP requests or all incoming HTTP responses in certain situations. In these cases, we can utilize automatic modifications based on rules we set, so the web proxy tools will automatically apply them.</p>
+<hr>
+<h3 id="automatic-request-modification">Automatic Request Modification</h3>
+<p>Let us start with an example of automatic request modification. We can choose to match any text within our requests, either in the request header or request body, and then replace them with different text. For the sake of demonstration, let&#39;s replace our <code>User-Agent</code> with <code>HackTheBox Agent 1.0</code>, which may be handy in cases where we may be dealing with filters that block certain User-Agents.</p>
+<p><strong>Burp Match and Replace</strong></p>
+<p>We can go to (<code>Proxy&gt;Options&gt;Match and Replace</code>) and click on <code>Add</code> in Burp. As the below screenshot shows, we will set the following options:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_match_replace_user_agent_1.jpg" alt="Match/replace rule dialog for request header, matching &#39;^User-Agent.\*$&#39;, replacing with &#39;User-Agent: HackTheBox Agent 1.0&#39;, regex enabled, OK and Cancel buttons."></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Type</code>: <code>Request header</code></td>
+<td>Since the change we want to make will be in the request header and not in its body.</td>
+</tr>
+<tr>
+<td><code>Match</code>: <code>^User-Agent.*$</code></td>
+<td>The regex pattern that matches the entire line with <code>User-Agent</code> in it.</td>
+</tr>
+<tr>
+<td><code>Replace</code>: <code>User-Agent: HackTheBox Agent 1.0</code></td>
+<td>This is the value that will replace the line we matched above.</td>
+</tr>
+<tr>
+<td><code>Regex match</code>: True</td>
+<td>We don&#39;t know the exact User-Agent string we want to replace, so we&#39;ll use regex to match any value that matches the pattern we specified above.</td>
+</tr>
+</tbody>
+</table>
+<p>Once we enter the above options and click <code>Ok</code>, our new Match and Replace option will be added and enabled and will start automatically replacing the <code>User-Agent</code> header in our requests with our new User-Agent. We can verify that by visiting any website using the pre-configured Burp browser and reviewing the intercepted request. We will see that our User-Agent has indeed been automatically replaced:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_match_replace_user_agent_2.jpg" alt="HTTP request details with &#39;User-Agent: HackTheBox Agent 1.0&#39;, buttons: Forward, Drop, Intercept is on, Action, Open Browser."></p>
+<p><strong>ZAP Replacer</strong></p>
+<p>ZAP has a similar feature called <code>Replacer</code>, which we can access by pressing [<code>CTRL+R</code>] or clicking on <code>Replacer</code> in ZAP&#39;s options menu. It is fairly similar to what we did above, so we can click on <code>Add</code> and add the same options we used earlier:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/zap_match_replace_user_agent_1.jpg" alt="Rule settings for &#39;HTB User-Agent&#39;, matching &#39;User-Agent&#39; in request header, replacing with &#39;HackTheBox Agent 1.0&#39;, enabled, Save and Cancel buttons."></p>
+<ul>
+<li><code>Description</code>: <code>HTB User-Agent</code>.</li>
+<li><code>Match Type</code>: <code>Request Header (will add if not present)</code>.</li>
+<li><code>Match String</code>: <code>User-Agent</code>. We can select the header we want from the drop-down menu, and ZAP will replace its value.</li>
+<li><code>Replacement String</code>: <code>HackTheBox Agent 1.0</code>.</li>
+<li><code>Enable</code>: True.</li>
+</ul>
+<p>ZAP also has the <code>Request Header String</code> that we can use with a Regex pattern. <code>Try using this option with the same values we used for Burp to see how it works.</code></p>
+<p>ZAP also provides the option to set the <code>Initiators</code>, which we can access by clicking on the other tab in the windows shown above. Initiators enable us to select where our <code>Replacer</code> option will be applied. We will keep the default option of <code>Apply to all HTTP(S) messages</code> to apply everywhere.</p>
+<p>We can now enable request interception by pressing [<code>CTRL+B</code>], then can visit any page in the pre-configured ZAP browser:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/zap_match_replace_user_agent_2.jpg" alt="HTTP request details with &#39;User-Agent: HackTheBox Agent 1.0&#39; highlighted."></p>
+<hr>
+<h3 id="automatic-response-modification">Automatic Response Modification</h3>
+<p>The same concept can be used with HTTP responses as well. In the previous section, you may have noticed when we intercepted the response that the modifications we made to the <code>IP</code> field were temporary and were not applied when we refreshed the page unless we intercepted the response and added them again. To solve this, we can automate response modification similarly to what we did above to automatically enable any characters in the <code>IP</code> field for easier command injection.</p>
+<p>Let us go back to (<code>Proxy&gt;Options&gt;Match and Replace</code>) in Burp to add another rule. This time we will use the type of <code>Response body</code> since the change we want to make exists in the response&#39;s body and not in its headers. In this case, we do not have to use regex as we know the exact string we want to replace, though it is possible to use regex to do the same thing if we prefer.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_match_replace_response_1.jpg" alt="Match/replace rule dialog for response body, matching &#39;type=&quot;number&quot;&#39;, replacing with &#39;type=&quot;text&quot;&#39;, OK and Cancel buttons."></p>
+<ul>
+<li><code>Type</code>: <code>Response body</code>.</li>
+<li><code>Match</code>: <code>type=&quot;number&quot;</code>.</li>
+<li><code>Replace</code>: <code>type=&quot;text&quot;</code>.</li>
+<li><code>Regex match</code>: False.</li>
+</ul>
+<p>Try adding another rule to change <code>maxlength=&quot;3&quot;</code> to <code>maxlength=&quot;100&quot;</code>.</p>
+<p>Now, once we refresh the page with [<code>CTRL+SHIFT+R</code>], we&#39;ll see that we can add any input to the input field, and this should persist between page refreshes as well:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_match_replace_response_2.jpg" alt="Ping interface with IP input &#39;127.0.0.0&#39; and &#39;Ping&#39; button."></p>
+<p>We can now click on <code>Ping</code>, and our command injection should work without intercepting and modifying the request.</p>
+<p>\</p>
+<hr>
+<h2 id="repeating-requests">Repeating Requests</h2>
+<hr>
+<p>In the previous sections, we successfully bypassed the input validation to use a non-numeric input to reach command injection on the remote server. If we want to repeat the same process with a different command, we would have to intercept the request again, provide a different payload, forward it again, and finally check our browser to get the final result.</p>
+<p>As you can imagine, if we would do this for each command, it would take us forever to enumerate a system, as each command would require 5-6 steps to get executed. However, for such repetitive tasks, we can utilize request repeating to make this process significantly easier.</p>
+<p>Request repeating allows us to resend any web request that has previously gone through the web proxy. This allows us to make quick changes to any request before we send it, then get the response within our tools without intercepting and modifying each request.</p>
+<hr>
+<h3 id="proxy-history">Proxy History</h3>
+<p>To start, we can view the HTTP requests history in <code>Burp</code> at (<code>Proxy&gt;HTTP History</code>):</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_history_tab.jpg" alt="Proxy HTTP history showing requests with methods POST and GET, status codes, and details like URL, MIME type, and IP address."></p>
+<p>In <code>ZAP</code> HUD, we can find it in the bottom History pane or ZAP&#39;s main UI at the bottom <code>History</code> tab as well:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/zap_history_tab.jpg" alt="WebSockets history showing requests with methods POST and GET, status 200, and URLs, with filter option."></p>
+<p>Both tools also provide filtering and sorting options for requests history, which may be helpful if we deal with a huge number of requests and want to locate a specific request. <code>Try to see how filters work on both tools.</code></p>
+<p>Note: Both tools also maintain WebSockets history, which shows all connections initiated by the web application even after being loaded, like asynchronous updates and data fetching. WebSockets can be useful when performing advanced web penetration testing, and are out of the scope of this module.</p>
+<p>If we click on any request in the history in either tool, its details will be shown:</p>
+<p><code>Burp</code>: <img src="https://academy.hackthebox.com/storage/modules/110/burp_history_details.jpg" alt="Request and response details: POST to /ping with headers and IP, response 200 OK with ping statistics."></p>
+<p><code>ZAP</code>: <img src="https://academy.hackthebox.com/storage/modules/110/zap_history_details.jpg" alt="Request and response details: POST to /ping with headers and IP, response 200 OK with ping statistics."></p>
+<p>Tip: While ZAP only shows the final/modified request that was sent, Burp provides the ability to examine both the original request and the modified request. If a request was edited, the pane header would say <code>Original Request</code>, and we can click on it and select <code>Edited Request</code> to examine the final request that was sent.</p>
+<hr>
+<h3 id="repeating-requests">Repeating Requests</h3>
+<p><strong>Burp</strong></p>
+<p>Once we locate the request we want to repeat, we can click [<code>CTRL+R</code>] in Burp to send it to the <code>Repeater</code> tab, and then we can either navigate to the <code>Repeater</code> tab or click [<code>CTRL+SHIFT+R</code>] to go to it directly. Once in <code>Repeater</code>, we can click on <code>Send</code> to send the request:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_repeater_request.jpg" alt="Repeater tab showing request and response: POST to /ping with headers and IP, response 200 OK with ping statistics."></p>
+<p>Tip: We can also right-click on the request and select <code>Change Request Method</code> to change the HTTP method between POST/GET without having to rewrite the entire request.</p>
+<p><strong>ZAP</strong></p>
+<p>In ZAP, once we locate our request, we can right-click on it and select <code>Open/Resend with Request Editor</code>, which would open the request editor window, and allow us to resend the request with the <code>Send</code> button to send our request: <img src="https://academy.hackthebox.com/storage/modules/110/zap_repeater_request.jpg" alt="Request and response details: POST to /ping with headers and IP, response 200 OK with ping statistics, time and length info."></p>
+<p>We can also see the <code>Method</code> drop-down menu, allowing us to quickly switch the request method to any other HTTP method.</p>
+<p>Tip: By default, the Request Editor window in ZAP has the Request/Response in different tabs. You can click on the display buttons to change how they are organized. To match the above look choose the same display options shown in the screenshot.</p>
+<p>We can achieve the same result within the pre-configured browser with <code>ZAP HUD</code>. We can locate the request in the bottom History pane, and once we click on it, the <code>Request Editor</code> window will show, allowing us to resend it. We can select <code>Replay in Console</code> to get the response in the same <code>HUD</code> window, or select <code>Replay in Browser</code> to see the response rendered in the browser:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/zap_hud_resend.jpg" alt="HTTP Message dialog showing POST request details with options to Active Scan, Replay in Console, and Replay in Browser."></p>
+<p>So, let us try to modify our request and send it. In all three options (<code>Burp Repeater</code>, <code>ZAP Request Editor</code>, and <code>ZAP HUD</code>), we see that the requests are modifiable, and we can select the text we want to change and replace it with whatever we want, and then click the <code>Send</code> button to send it again:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_repeat_modify.jpg" alt="Repeater tab showing POST request to /ping with headers and command injection, response 200 OK with ping statistics and file list."></p>
+<p>As we can see, we could easily modify the command and instantly get its output by using Burp <code>Repeater</code>. Try doing the same in <code>ZAP Request Editor</code> and <code>ZAP HUD</code> to see how they work.</p>
+<p>Finally, we can see in our previous POST request that the data is URL-encoded. This is an essential part of sending custom HTTP requests, which we will discuss in the next section.</p>
+<hr>
+<h2 id="encoding-decoding">Encoding/Decoding</h2>
+<hr>
+<p>As we modify and send custom HTTP requests, we may have to perform various types of encoding and decoding to interact with the webserver properly. Both tools have built-in encoders that can help us in quickly encoding and decoding various types of text.</p>
+<hr>
+<h3 id="url-encoding">URL Encoding</h3>
+<p>It is essential to ensure that our request data is URL-encoded and our request headers are correctly set. Otherwise, we may get a server error in the response. This is why encoding and decoding data becomes essential as we modify and repeat web requests. Some of the key characters we need to encode are:</p>
+<ul>
+<li><code>Spaces</code>: May indicate the end of request data if not encoded</li>
+<li><code>&amp;</code>: Otherwise interpreted as a parameter delimiter</li>
+<li><code>#</code>: Otherwise interpreted as a fragment identifier</li>
+</ul>
+<p>To URL-encode text in Burp Repeater, we can select that text and right-click on it, then select (<code>Convert Selection&gt;URL&gt;URL encode key characters</code>), or by selecting the text and clicking [<code>CTRL+U</code>]. Burp also supports URL-encoding as we type if we right-click and enable that option, which will encode all of our text as we type it. On the other hand, ZAP should automatically URL-encode all of our request data in the background before sending the request, though we may not see that explicitly.</p>
+<p>There are other types of URL-encoding, like <code>Full URL-Encoding</code> or <code>Unicode URL</code> encoding, which may also be helpful for requests with many special characters.</p>
+<hr>
+<h3 id="decoding">Decoding</h3>
+<p>While URL-encoding is key to HTTP requests, it is not the only type of encoding we will encounter. It is very common for web applications to encode their data, so we should be able to quickly decode that data to examine the original text. On the other hand, back-end servers may expect data to be encoded in a particular format or with a specific encoder, so we need to be able to quickly encode our data before we send it.</p>
+<p>The following are some of the other types of encoders supported by both tools:</p>
+<ul>
+<li>HTML</li>
+<li>Unicode</li>
+<li>Base64</li>
+<li>ASCII hex</li>
+</ul>
+<p>To access the full encoder in Burp, we can go to the <code>Decoder</code> tab. In ZAP, we can use the <code>Encoder/Decoder/Hash</code> by clicking [<code>CTRL+E</code>]. With these encoders, we can input any text and have it quickly encoded or decoded. For example, perhaps we came across the following cookie that is base64 encoded, and we need to decode it: <code>eyJ1c2VybmFtZSI6Imd1ZXN0IiwgImlzX2FkbWluIjpmYWxzZX0=</code></p>
+<p>We can input the above string in Burp Decoder and select <code>Decode as &gt; Base64</code>, and we&#39;ll get the decoded value:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_b64_decode.jpg" alt="Decoder tab showing encoded string and its decoded JSON output with options for text, hex, and smart decode."></p>
+<p>In recent versions of Burp, we can also use the <code>Burp Inspector</code> tool to perform encoding and decoding (among other things), which can be found in various places like <code>Burp Proxy</code> or <code>Burp Repeater</code>:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_inspector.jpg" alt="Request and response details with encoded IP in request, HTML response, and Inspector showing URL and Base64 decoding."></p>
+<p>In ZAP, we can use the <code>Encoder/Decoder/Hash</code> tool, which will automatically decode strings using various decoders in the <code>Decode</code> tab: <img src="https://academy.hackthebox.com/storage/modules/110/zap_b64_decode.jpg" alt="Text encoding/decoding interface showing Base64 encoded string and its decoded JSON output."></p>
+<p>Tip: We can create customized tabs in ZAP&#39;s Encoder/Decoder/Hash with the &quot;Add New Tab&quot; button, and then we can add any type of encoder/decoder we want the text to be shown in. Try to create your own tab with a few encoders/decoders.</p>
+<hr>
+<h3 id="encoding">Encoding</h3>
+<p>As we can see, the text holds the value <code>{&quot;username&quot;:&quot;guest&quot;, &quot;is_admin&quot;:false}</code>. So, if we were performing a penetration test on a web application and find that the cookie holds this value, we may want to test modifying it to see whether it changes our user privileges. So, we can copy the above value, change <code>guest</code> to <code>admin</code> and <code>false</code> to <code>true</code>, and try to encode it again using its original encoding method (<code>base64</code>):</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_b64_encode.jpg" alt="Decoder tab showing JSON with admin access and its Base64 encoded string, with options for text, hex, and smart decode."></p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/zap_b64_encode.jpg" alt="Text encoding interface showing JSON with admin access and its Base64 encoded output."></p>
+<p>Tip: Burp Decoder output can be directly encoded/decoded with a different encoder. Select the new encoder method in the output pane at the bottom, and it will be encoded/decoded again. In ZAP, we can copy the output text and paste it in the input field above.</p>
+<p>We can then copy the base64 encoded string and use it with our request in Burp <code>Repeater</code> or ZAP <code>Request Editor</code>. The same concept can be used to encode and decode various types of encoded text to perform effective web penetration testing without utilizing other tools to do the encoding.</p>
+<hr>
+<h2 id="proxying-tools">Proxying Tools</h2>
+<hr>
+<p>An important aspect of using web proxies is enabling the interception of web requests made by command-line tools and thick client applications. This gives us transparency into the web requests made by these applications and allows us to utilize all of the different proxy features we have used with web applications.</p>
+<p>To route all web requests made by a specific tool through our web proxy tools, we have to set them up as the tool&#39;s proxy (i.e. <code>http://127.0.0.1:8080</code>), similarly to what we did with our browsers. Each tool may have a different method for setting its proxy, so we may have to investigate how to do so for each one.</p>
+<p>This section will cover a few examples of how to use web proxies to intercept web requests made by such tools. You may use either Burp or ZAP, as the setup process is the same.</p>
+<p>Note: Proxying tools usually slows them down, therefore, only proxy tools when you need to investigate their requests, and not for normal usage.</p>
+<hr>
+<h3 id="proxychains">Proxychains</h3>
+<p>One very useful tool in Linux is <a href="https://github.com/haad/proxychains">proxychains</a>, which routes all traffic coming from any command-line tool to any proxy we specify. <code>Proxychains</code> adds a proxy to any command-line tool and is hence the simplest and easiest method to route web traffic of command-line tools through our web proxies.</p>
+<p>To use <code>proxychains</code>, we first have to edit <code>/etc/proxychains.conf</code>, comment out the final line and add the following line at the end of it:</p>
+<pre><code class="lang-shell-session">#socks4         <span class="hljs-number">127.0</span><span class="hljs-number">.0</span><span class="hljs-number">.1</span> <span class="hljs-number">9050</span>
+http <span class="hljs-number">127.0</span><span class="hljs-number">.0</span><span class="hljs-number">.1</span> <span class="hljs-number">8080</span>
+</code></pre>
+<p>We should also enable <code>Quiet Mode</code> to reduce noise by un-commenting <code>quiet_mode</code>. Once that&#39;s done, we can prepend <code>proxychains</code> to any command, and the traffic of that command should be routed through <code>proxychains</code> (i.e., our web proxy). For example, let&#39;s try using <code>cURL</code> on one of our previous exercises:</p>
+<pre><code class="lang-shell-session">root@htb[/htb]$ proxychains curl http://SERVER_IP:PORT
+
+ProxyChains-3.1 (http://proxychains.sf.net)
+<span class="hljs-meta">&lt;!DOCTYPE html&gt;</span>
+<span class="hljs-tag">&lt;<span class="hljs-name">html</span> <span class="hljs-attr">lang</span>=<span class="hljs-string">"en"</span>&gt;</span>
+
+<span class="hljs-tag">&lt;<span class="hljs-name">head</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">meta</span> <span class="hljs-attr">charset</span>=<span class="hljs-string">"UTF-8"</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">title</span>&gt;</span>Ping IP<span class="hljs-tag">&lt;/<span class="hljs-name">title</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">link</span> <span class="hljs-attr">rel</span>=<span class="hljs-string">"stylesheet"</span> <span class="hljs-attr">href</span>=<span class="hljs-string">"./style.css"</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">head</span>&gt;</span>
+...SNIP...
+<span class="hljs-tag">&lt;/<span class="hljs-name">html</span>&gt;</span>
+</code></pre>
+<p>We see that it worked just as it normally would, with the additional <code>ProxyChains-3.1</code> line at the beginning, to note that it is being routed through <code>ProxyChains</code>. If we go back to our web proxy (Burp in this case), we will see that the request has indeed gone through it:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/proxying_proxychains_curl.jpg" alt="Proxy tab showing HTTP GET request details with buttons: Forward, Drop, Intercept is on, Action, Open Browser."></p>
+<hr>
+<h3 id="nmap">Nmap</h3>
+<p>Next, let&#39;s try to proxy <code>nmap</code> through our web proxy. To find out how to use the proxy configurations for any tool, we can view its manual with <code>man nmap</code>, or its help page with <code>nmap -h</code>:</p>
+<pre><code class="lang-shell-session">root@htb<span class="hljs-string">[/htb]</span>$ nmap -h | grep -i prox
+
+  --proxies &lt;url1,<span class="hljs-string">[url2]</span>,...&gt;: Relay connections through HTTP/SOCKS4 proxies
+</code></pre>
+<p>As we can see, we can use the <code>--proxies</code> flag. We should also add the <code>-Pn</code> flag to skip host discovery (as recommended on the man page). Finally, we&#39;ll also use the <code>-sC</code> flag to examine what an nmap script scan does:</p>
+<pre><code class="lang-shell-session">root@htb[/htb]$ nmap <span class="hljs-comment">--proxies http://127.0.0.1:8080 SERVER_IP -pPORT -Pn -sC</span>
+
+Starting Nmap <span class="hljs-number">7.91</span> ( https://nmap.org )
+Nmap scan <span class="hljs-keyword">report</span> <span class="hljs-keyword">for</span> SERVER_IP
+Host <span class="hljs-keyword">is</span> up (<span class="hljs-number">0.11</span>s latency).
+
+<span class="hljs-keyword">PORT</span>      STATE SERVICE
+<span class="hljs-keyword">PORT</span>/tcp <span class="hljs-keyword">open</span>  unknown
+
+Nmap done: <span class="hljs-number">1</span> IP address (<span class="hljs-number">1</span> host up) scanned <span class="hljs-keyword">in</span> <span class="hljs-number">0.49</span> seconds
+</code></pre>
+<p>Once again, if we go to our web proxy tool, we will see all of the requests made by nmap in the proxy history:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/proxying_nmap.jpg" alt="Proxy HTTP history showing requests with methods POST, PROPFIND, OPTIONS, GET, and URLs, filtered to hide CSS and binary content."></p>
+<p>Note: Nmap&#39;s built-in proxy is still in its experimental phase, as mentioned by its manual (<code>man nmap</code>), so not all functions or traffic may be routed through the proxy. In these cases, we can simply resort to <code>proxychains</code>, as we did earlier.</p>
+<hr>
+<h3 id="metasploit">Metasploit</h3>
+<p>Finally, let&#39;s try to proxy web traffic made by Metasploit modules to better investigate and debug them. We should begin by starting Metasploit with <code>msfconsole</code>. Then, to set a proxy for any exploit within Metasploit, we can use the <code>set PROXIES</code> flag. Let&#39;s try the <code>robots_txt</code> scanner as an example and run it against one of our previous exercises:</p>
+<pre><code class="lang-shell-session">root@htb[/htb]<span class="hljs-symbol">$</span> msfconsole
+
+msf6 &gt; use auxiliary/scanner/http/robots_txt
+msf6 auxiliary(scanner/http/robots_txt) &gt; <span class="hljs-keyword">set</span> PROXIES <span class="hljs-comment">HTTP:127.0.0.1:8080</span>
+
+PROXIES <span class="hljs-comment">=&gt; HTTP:127.0.0.1:8080</span>
+
+
+msf6 <span class="hljs-comment">auxiliary(scanner</span>/http/<span class="hljs-comment">robots_txt) &gt; set RHOST SERVER_IP</span>
+
+RHOST <span class="hljs-comment">=&gt; SERVER_IP</span>
+
+
+msf6 <span class="hljs-comment">auxiliary(scanner</span>/http/<span class="hljs-comment">robots_txt) &gt; set RPORT PORT</span>
+
+RPORT <span class="hljs-comment">=&gt; PORT</span>
+
+
+msf6 <span class="hljs-comment">auxiliary(scanner</span>/http/<span class="hljs-comment">robots_txt) &gt; run</span>
+
+[*] Scanned <span class="hljs-comment">1 of 1 hosts (100% complete)</span>
+[*] Auxiliary <span class="hljs-comment">module execution completed</span>
+</code></pre>
+<p>Once again, we can go back to our web proxy tool of choice and examine the proxy history to view all sent requests:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/proxying_msf.jpg" alt="Proxy HTTP history showing GET request to /robots.txt with 404 status, request and response details displayed."></p>
+<p>We see that the request has indeed gone through our web proxy. The same method can be used with other scanners, exploits, and other features in Metasploit.</p>
+<p>We can similarly use our web proxies with other tools and applications, including scripts and thick clients. All we have to do is set the proxy of each tool to use our web proxy. This allows us to examine exactly what these tools are sending and receiving and potentially repeat and modify their requests while performing web application penetration testing.</p>
+<hr>
+<h2 id="burp-intruder">Burp Intruder</h2>
+<hr>
+<p>Both Burp and ZAP provide additional features other than the default web proxy, which are essential for web application penetration testing. Two of the most important extra features are <code>web fuzzers</code> and <code>web scanners</code>. The built-in web fuzzers are powerful tools that act as web fuzzing, enumeration, and brute-forcing tools. This may also act as an alternative for many of the CLI-based fuzzers we use, like <code>ffuf</code>, <code>dirbuster</code>, <code>gobuster</code>, <code>wfuzz</code>, among others.</p>
+<p>Burp&#39;s web fuzzer is called <code>Burp Intruder</code>, and can be used to fuzz pages, directories, sub-domains, parameters, parameters values, and many other things. Though it is much more advanced than most CLI-based web fuzzing tools, the free <code>Burp Community</code> version is throttled at a speed of 1 request per second, making it extremely slow compared to CLI-based web fuzzing tools, which can usually read up to 10k requests per second. This is why we would only use the free version of Burp Intruder for short queries. The <code>Pro</code> version has unlimited speed, which can rival common web fuzzing tools, in addition to the very useful features of Burp Intruder. This makes it one of the best web fuzzing and brute-forcing tools.</p>
+<p>In this section, we will demonstrate the various uses of Burp Intruder for web fuzzing and enumeration.</p>
+<hr>
+<h3 id="target">Target</h3>
+<p>As usual, we&#39;ll start up Burp and its pre-configured browser and then visit the web application from the exercise at the end of this section. Once we do, we can go to the Proxy History, locate our request, then right-click on the request and select <code>Send to Intruder</code>, or use the shortcut [<code>CTRL+I</code>] to send it to <code>Intruder</code>.</p>
+<p>We can then go to <code>Intruder</code> by clicking on its tab or with the shortcut [<code>CTRL+SHIFT+I</code>], which takes us right to <code>Burp Intruder</code>:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_intruder_target.jpg" alt="Intruder tab showing Attack Target configuration with host 46.101.23.188 and port 31827, option to use HTTPS."></p>
+<p>On the first tab, &#39;<code>Target</code>&#39;, we see the details of the target we will be fuzzing, which is fed from the request we sent to <code>Intruder</code>.</p>
+<hr>
+<h3 id="positions">Positions</h3>
+<p>The second tab, &#39;<code>Positions</code>&#39;, is where we place the payload position pointer, which is the point where words from our wordlist will be placed and iterated over. We will be demonstrating how to fuzz web directories, which is similar to what&#39;s done by tools like <code>ffuf</code> or <code>gobuster</code>.</p>
+<p>To check whether a web directory exists, our fuzzing should be in &#39;<code>GET /DIRECTORY/</code>&#39;, such that existing pages would return <code>200 OK</code>, otherwise we&#39;d get <code>404 NOT FOUND</code>. So, we will need to select <code>DIRECTORY</code> as the payload position, by either wrapping it with <code>§</code> or by selecting the word <code>DIRECTORY</code> and clicking on the <code>Add §</code> button:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_intruder_position.jpg" alt="Intruder tab showing Payload Positions with attack type Sniper, displaying HTTP GET request details."></p>
+<p>Tip: the <code>DIRECTORY</code> in this case is the pointer&#39;s name, which can be anything, and can be used to refer to each pointer, in case we are using more than position with different wordlists for each.</p>
+<p>The final thing to select in the target tab is the <code>Attack Type</code>. The attack type defines how many payload pointers are used and determines which payload is assigned to which position. For simplicity, we&#39;ll stick to the first type, <code>Sniper</code>, which uses only one position. Try clicking on the <code>?</code> at the top of the window to read more about attack types, or check out this <a href="https://portswigger.net/burp/documentation/desktop/tools/intruder/positions#attack-type">link</a>.</p>
+<p>Note: Be sure to leave the extra two lines at the end of the request, otherwise we may get an error response from the server.</p>
+<hr>
+<h3 id="payloads">Payloads</h3>
+<p>On the third tab, &#39;<code>Payloads</code>&#39;, we get to choose and customize our payloads/wordlists. This payload/wordlist is what would be iterated over, and each element/line of it would be placed and tested one by one in the Payload Position we chose earlier. There are four main things we need to configure:</p>
+<ul>
+<li>Payload Sets</li>
+<li>Payload Options</li>
+<li>Payload Processing</li>
+<li>Payload Encoding</li>
+</ul>
+<p><strong>Payload Sets</strong></p>
+<p>The first thing we must configure is the <code>Payload Set</code>. The payload set identifies the Payload number, depending on the attack type and number of Payloads we used in the Payload Position Pointers:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_intruder_payload_set.jpg" alt="Intruder tab showing Payload Sets configuration with payload set 1, type Simple list, and counts for payload and request."></p>
+<p>In this case, we only have one Payload Set, as we chose the &#39;<code>Sniper</code>&#39; Attack type with only one payload position. If we have chosen the &#39;<code>Cluster Bomb</code>&#39; attack type, for example, and added several payload positions, we would get more payload sets to choose from and choose different options for each. In our case, we&#39;ll select <code>1</code> for the payload set.</p>
+<p>Next, we need to select the <code>Payload Type</code>, which is the type of payloads/wordlists we will be using. Burp provides a variety of Payload Types, each of which acts in a certain way. For example:</p>
+<ul>
+<li><code>Simple List</code>: The basic and most fundamental type. We provide a wordlist, and Intruder iterates over each line in it.</li>
+<li><code>Runtime file</code>: Similar to <code>Simple List</code>, but loads line-by-line as the scan runs to avoid excessive memory usage by Burp.</li>
+<li><code>Character Substitution</code>: Lets us specify a list of characters and their replacements, and Burp Intruder tries all potential permutations.</li>
+</ul>
+<p>There are many other Payload Types, each with its own options, and many of which can build custom wordlists for each attack. Try clicking on the <code>?</code> next to <code>Payload Sets</code>, and then click on <code>Payload Type</code>, to learn more about each Payload Type. In our case, we&#39;ll be going with a basic <code>Simple List</code>.</p>
+<p><strong>Payload Options</strong></p>
+<p>Next, we must specify the Payload Options, which is different for each Payload Type we select in <code>Payload Sets</code>. For a <code>Simple List</code>, we have to create or load a wordlist. To do so, we can input each item manually by clicking <code>Add</code>, which would build our wordlist on the fly. The other more common option is to click on <code>Load</code>, and then select a file to load into Burp Intruder.</p>
+<p>We will select <code>/opt/useful/seclists/Discovery/Web-Content/common.txt</code> as our wordlist. We can see that Burp Intruder loads all lines of our wordlist into the Payload Options table:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_intruder_payload_wordlist.jpg" alt="Payload Options for Simple list with file names, buttons for Paste, Load, Remove, Clear, and Add new item."></p>
+<p>We can add another wordlist or manually add a few items, and they would be appended to the same list of items. We can use this to combine multiple wordlists or create customized wordlists. In Burp Pro, we also can select from a list of existing wordlists contained within Burp by choosing from the <code>Add from list</code> menu option.</p>
+<p>Tip: In case you wanted to use a very large wordlist, it&#39;s best to use <code>Runtime file</code> as the Payload Type instead of <code>Simple List</code>, so that Burp Intruder won&#39;t have to load the entire wordlist in advance, which may throttle memory usage.</p>
+<p><strong>Payload Processing</strong></p>
+<p>Another option we can apply is <code>Payload Processing</code>, which allows us to determine fuzzing rules over the loaded wordlist. For example, if we wanted to add an extension after our payload item, or if we wanted to filter the wordlist based on specific criteria, we can do so with payload processing.</p>
+<p>Let&#39;s try adding a rule that skips any lines that start with a <code>.</code> (as shown in the wordlist screenshot earlier). We can do that by clicking on the <code>Add</code> button and then selecting <code>Skip if matches regex</code>, which allows us to provide a regex pattern for items we want to skip. Then, we can provide a regex pattern that matches lines starting with <code>.</code>, which is: <code>^\..*$</code>:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_intruder_payload_processing_1.jpg" alt="Payload processing rule dialog with option &#39;Skip if matches regex&#39; and regex pattern &#39;^..\*$&#39;, OK and Cancel buttons."></p>
+<p>We can see that our rule gets added and enabled: <img src="https://academy.hackthebox.com/storage/modules/110/burp_intruder_payload_processing_2.jpg" alt="Payload Processing with rule &#39;Skip if matches \[^..\*$\]&#39;, buttons for Add, Edit, Remove, Up, Down."></p>
+<p><strong>Payload Encoding</strong></p>
+<p>The fourth and final option we can apply is <code>Payload Encoding</code>, enabling us to enable or disable Payload URL-encoding.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_intruder_payload_encoding.jpg" alt="Payload Encoding settings with URL-encode option for characters: ./^=&lt;&gt;&amp;+?\*:;&#39;{}|^"></p>
+<p>We&#39;ll leave it enabled.</p>
+<hr>
+<h3 id="options">Options</h3>
+<p>Finally, we can customize our attack options from the <code>Options</code> tab. There are many options we can customize (or leave at default) for our attack. For example, we can set the number of <code>retried on failure</code> and <code>pause before retry</code> to 0.</p>
+<p>Another useful option is the <code>Grep - Match</code>, which enables us to flag specific requests depending on their responses. As we are fuzzing web directories, we are only interested in responses with HTTP code <code>200 OK</code>. So, we&#39;ll first enable it and then click <code>Clear</code> to clear the current list. After that, we can type <code>200 OK</code> to match any requests with this string and click <code>Add</code> to add the new rule. Finally, we&#39;ll also disable <code>Exclude HTTP Headers</code>, as what we are looking for is in the HTTP header:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_intruder_options_match.jpg" alt="Grep - Match settings to flag items with expressions. Example: &#39;200 OK&#39;. Options: Simple string, Regex, Case sensitive, Exclude HTTP headers."></p>
+<p>We may also utilize the <code>Grep - Extract</code> option, which is useful if the HTTP responses are lengthy, and we&#39;re only interested in a certain part of the response. So, this helps us in only showing a specific part of the response. We are only looking for responses with HTTP Code <code>200 OK</code>, regardless of their content, so we will not opt for this option.</p>
+<p>Try other <code>Intruder</code> options, and use Burp help by clicking on <code>?</code> next to each one to learn more about each option.</p>
+<p>Note: We may also use the <code>Resource Pool</code> tab to specify how much network resources Intruder will use, which may be useful for very large attacks. For our example, we&#39;ll leave it at its default values.</p>
+<hr>
+<h3 id="attack">Attack</h3>
+<p>Now that everything is properly set up, we can click on the <code>Start Attack</code> button and wait for our attack to finish. Once again, in the free <code>Community Version</code>, these attacks would be very slow and take a considerable amount of time for longer wordlists.</p>
+<p>The first thing we will notice is that all lines starting with <code>.</code> were skipped, and we directly started with the lines after them:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_intruder_attack_exclude.jpg" alt="Results table showing requests with payloads, all with status 404, length 458."></p>
+<p>We can also see the <code>200 OK</code> column, which shows requests that match the <code>200 OK</code> grep value we specified in the Options tab. We can click on it to sort by it, such that we&#39;ll have matching results at the top. Otherwise, we can sort by <code>status</code> or by <code>Length</code>. Once our scan is done, we see that we get one hit <code>/admin</code>:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_intruder_attack.jpg" alt="Results table showing requests. &#39;admin&#39; payload has status 200, length 244, marked 200 OK. Others have status 404, length 458."></p>
+<p>We may now manually visit the page <code>&lt;http://SERVER_IP:PORT/admin/&gt;</code>, to make sure that it does exist.</p>
+<p>Similarly, we can use <code>Burp Intruder</code> to do any type of web fuzzing and brute-forcing, including brute forcing for passwords, or fuzzing for certain PHP parameters, and so on. We can even use <code>Intruder</code> to perform password spraying against applications that use Active Directory (AD) authentication such as Outlook Web Access (OWA), SSL VPN portals, Remote Desktop Services (RDS), Citrix, custom web applications that use AD authentication, and more. However, as the free version of <code>Intruder</code> is extremely throttled, in the next section, we will see ZAP&#39;s fuzzer and its various options, which do not have a paid tier.</p>
+<hr>
+<h2 id="zap-fuzzer">ZAP Fuzzer</h2>
+<hr>
+<p>ZAP&#39;s Fuzzer is called (<code>ZAP Fuzzer</code>). It can be very powerful for fuzzing various web end-points, though it is missing some of the features provided by Burp Intruder. ZAP Fuzzer, however, does not throttle the fuzzing speed, which makes it much more useful than Burp&#39;s free Intruder.</p>
+<p>In this section, we will try to replicate what we did in the previous section using ZAP Fuzzer to have an &quot;apples to apples&quot; comparison and decide which one we like best.</p>
+<hr>
+<h3 id="fuzz">Fuzz</h3>
+<p>To start our fuzzing, we will visit the URL from the exercise at the end of this section to capture a sample request. As we will be fuzzing for directories, let&#39;s visit <code>&lt;http://SERVER_IP:PORT/test/&gt;</code> to place our fuzzing location on <code>test</code> later on. Once we locate our request in the proxy history, we will right-click on it and select (<code>Attack&gt;Fuzz</code>), which will open the <code>Fuzzer</code> window:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/zap_fuzzer.jpg" alt="Fuzz Locations interface with HTTP request details on the left and empty fuzz locations list on the right. Options to add, remove, and configure payloads and processors. &#39;Remove Without Confirmation&#39; is checked."></p>
+<p>The main options we need to configure for our Fuzzer attack are:</p>
+<ul>
+<li>Fuzz Location</li>
+<li>Payloads</li>
+<li>Processors</li>
+<li>Options</li>
+</ul>
+<p>Let&#39;s try to configure them for our web directory fuzzing attack.</p>
+<hr>
+<h3 id="locations">Locations</h3>
+<p>The <code>Fuzz Location</code> is very similar to <code>Intruder Payload Position</code>, where our payloads will be placed. To place our location on a certain word, we can select it and click on the <code>Add</code> button on the right pane. So, let&#39;s select <code>test</code> and click on <code>Add</code>:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/zap_fuzzer_add.jpg" alt="Fuzz Locations interface with highlighted &#39;test&#39; in HTTP request. Popup shows location &#39;Header 31, 35&#39;, value &#39;test&#39;, and empty payloads list. &#39;Remove Without Confirmation&#39; is checked."></p>
+<p>As we can see, this placed a <code>green</code> marker on our selected location and opened the <code>Payloads</code> window for us to configure our attack payloads.</p>
+<hr>
+<h3 id="payloads">Payloads</h3>
+<p>The attack payloads in ZAP&#39;s Fuzzer are similar in concept to Intruder&#39;s Payloads, though they are not as advanced as Intruder&#39;s. We can click on the <code>Add</code> button to add our payloads and select from 8 different payload types. The following are some of them:</p>
+<ul>
+<li><code>File</code>: This allows us to select a payload wordlist from a file.</li>
+<li><code>File Fuzzers</code>: This allows us to select wordlists from built-in databases of wordlists.</li>
+<li><code>Numberzz</code>: Generates sequences of numbers with custom increments.</li>
+</ul>
+<p>One of the advantages of ZAP Fuzzer is having built-in wordlists we can choose from so that we do not have to provide our own wordlist. More databases can be installed from the ZAP Marketplace, as we will see in a later section. So, we can select <code>File Fuzzers</code> as the <code>Type</code>, and then we will select the first wordlist from <code>dirbuster</code>:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/zap_fuzzer_add_payload.jpg" alt="File Fuzzers interface with &#39;dirbuster&#39; and &#39;directory-list-1.0.txt&#39; selected. Payloads preview shows directory names like &#39;cgi-bin&#39;, &#39;.git&#39;, &#39;.svn&#39;."></p>
+<p>Once we click the <code>Add</code> button, our payload wordlist will get added, and we can examine it with the <code>Modify</code> button.</p>
+<hr>
+<h3 id="processors">Processors</h3>
+<p>We may also want to perform some processing on each word in our payload wordlist. The following are some of the payload processors we can use:</p>
+<ul>
+<li>Base64 Decode/Encode</li>
+<li>MD5 Hash</li>
+<li>Postfix String</li>
+<li>Prefix String</li>
+<li>SHA-1/256/512 Hash</li>
+<li>URL Decode/Encode</li>
+<li>Script</li>
+</ul>
+<p>As we can see, we have a variety of encoders and hashing algorithms to select from. We can also add a custom string before the payload with <code>Prefix String</code> or a custom string with <code>Postfix String</code>. Finally, the <code>Script</code> type allows us to select a custom script that we built and run on every payload before using it in the attack.</p>
+<p>We will select the <code>URL Encode</code> processor for our exercise to ensure that our payload gets properly encoded and avoid server errors if our payload contains any special characters. We can click on the <code>Generate Preview</code> button to preview how our final payload will look in the request:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/zap_fuzzer_add_processor.jpg" alt="URL Encode interface with UTF-8 encoding. Current and processed payloads include &#39;cgi-bin&#39;, &#39;.git&#39;, &#39;.svn&#39;. &#39;Lock Scroll&#39; is checked."></p>
+<p>Once that&#39;s done, we can click on <code>Add</code> to add the processor and click on <code>Ok</code> in the processors and payloads windows to close them.</p>
+<hr>
+<h3 id="options">Options</h3>
+<p>Finally, we can set a few options for our fuzzers, similar to what we did with Burp Intruder. For example, we can set the <code>Concurrent threads per scan</code> to <code>20</code>, so our scan runs very quickly:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/zap_fuzzer_options.jpg" alt="Options interface for fuzzing. Retries on IO error: 3. Limit max errors: 1000. Depth First strategy selected. 20 concurrent threads. No delay in fuzzing. Follow Redirects unchecked."></p>
+<p>The number of threads we set may be limited by how much computer processing power we want to use or how many connections the server allows us to establish.</p>
+<p>We may also choose to run through the payloads <code>Depth first</code>, which would attempt all words from the wordlist on a single payload position before moving to the next (e.g., try all passwords for a single user before brute-forcing the following user). We could also use <code>Breadth first</code>, which would run every word from the wordlist on all payload positions before moving to the next word (e.g., attempt every password for all users before moving to the following password).</p>
+<hr>
+<h3 id="start">Start</h3>
+<p>With all of our options configured, we can finally click on the <code>Start Fuzzer</code> button to start our attack. Once our attack is started, we can sort the results by the <code>Response</code> code, as we are only interested in responses with code <code>200</code>:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/zap_fuzzer_attack.jpg" alt="Table showing task IDs, message types, HTTP codes, reasons, round-trip times, response sizes, states, and payloads. Example: Task ID 908, 200 OK, 109 ms, 246 bytes, state &#39;skills&#39;."></p>
+<p>As we can see, we got one hit with code <code>200</code> with the <code>skills</code> payload, meaning that the <code>/skills/</code> directory exists on the server and is accessible. We can click on the request in the results window to view its details: <img src="https://academy.hackthebox.com/storage/modules/110/zap_fuzzer_dir.jpg" alt="Request and response details. Request: HTTP GET to /skills/. Response: 200 OK, includes Set-Cookie header, HTML content with &#39;Welcome&#39; title."></p>
+<p>We can see from the response that this page is indeed accessible by us. There are other fields that may indicate a successful hit depending on the attack scenario, like <code>Size Resp. Body</code> which may indicate that we got a different page if its size was different than other responses, or <code>RTT</code> for attacks like <code>time-based SQL injections</code>, which are detected by a time delay in the server response.</p>
+<hr>
+<h2 id="burp-scanner">Burp Scanner</h2>
+<hr>
+<p>An essential feature of web proxy tools is their web scanners. Burp Suite comes with <code>Burp Scanner</code>, a powerful scanner for various types of web vulnerabilities, using a <code>Crawler</code> for building the website structure, and <code>Scanner</code> for passive and active scanning.</p>
+<p>Burp Scanner is a Pro-Only feature, and it is not available in the free Community version of Burp Suite. However, given the wide scope that Burp Scanner covers and the advanced features it includes, it makes it an enterprise-level tool, and as such, it is expected to be a paid feature.</p>
+<hr>
+<h3 id="target-scope">Target Scope</h3>
+<p>To start a scan in Burp Suite, we have the following options:</p>
+<ol>
+<li>Start scan on a specific request from Proxy History</li>
+<li>Start a new scan on a set of targets</li>
+<li>Start a scan on items in-scope</li>
+</ol>
+<p>To start a scan on a specific request from Proxy History, we can right-click on it once we locate it in the history, and then select <code>Scan</code> to be able to configure the scan before we run it, or select <code>Passive/Active Scan</code> to quickly start a scan with the default configurations:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_scan_request.jpg" alt="Proxy HTTP history showing requests. Selected GET request to http://142.93.35.92:30269/ with status 200, length 11297, HTML. Context menu options include &#39;Scan&#39;"></p>
+<p>We may also click on the <code>New Scan</code> button on the <code>Dashboard</code> tab, which would open the <code>New Scan</code> configuration window to configure a scan on a set of custom targets. Instead of creating a custom scan from scratch, let&#39;s see how we can utilize the scope to properly define what&#39;s included/excluded from our scans using the <code>Target Scope</code>. The <code>Target Scope</code> can be utilized with all Burp features to define a custom set of targets that will be processed. Burp also allows us to limit Burp to in-scope items to save resources by ignoring any out-of-scope URLs.</p>
+<p>Note: We will be scanning the web application from the exercise found at the end of the next section. If you obtain a license to use Burp Pro, you may spawn the target at the end of the next section and follow along here.</p>
+<p>If we go to (<code>Target&gt;Site map</code>), it will show a listing of all directories and files burp has detected in various requests that went through its proxy:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_site_map_before.jpg" alt="Target site map showing directory structure for http://46.101.23.188:30760. Selected GET request to &#39;/&#39; with status 200, length 11315, HTML, title &#39;HTB Academy&#39;."></p>
+<p>To add an item to our scope, we can right-click on it and select <code>Add to scope</code>:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_add_to_scope.jpg" alt="Context menu for http://46.101.23.188:30760l with option to &#39;Add to scope&#39;."></p>
+<p>Note: When you add the first item to your scope, Burp will give you the option to restrict its features to in-scope items only, and ignore any out-of-scope items.</p>
+<p>We may also need to exclude a few items from scope if scanning them may be dangerous or may end our session &#39;like a logout function&#39;. To exclude an item from our scope, we can right-click on any in-scope item and select <code>Remove from scope</code>. Finally, we can go to (<code>Target&gt;Scope</code>) to view the details of our scope. Here, we may also add/remove other items and use advanced scope control to specify regex patterns to be included/excluded.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_target_scope.jpg" alt="Target Scope settings with &#39;Include in scope&#39; for http://142.93.35.92:30269/ and &#39;Exclude from scope&#39; for /xmlrpc.php. &#39;Use advanced scope control&#39; is unchecked."></p>
+<hr>
+<h3 id="crawler">Crawler</h3>
+<p>Once we have our scope ready, we can go to the <code>Dashboard</code> tab and click on <code>New Scan</code> to configure our scan, which would be automatically populated with our in-scope items:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_new_scan.jpg" alt="Scan details with &#39;Crawl&#39; selected. URL to scan: http://142.93.35.92:30269/. Protocol settings: Scan using HTTP &amp; HTTPS."></p>
+<p>We see that Burp gives us two scanning options: <code>Crawl and Audit</code> and <code>Crawl</code>. A Web Crawler navigates a website by accessing any links found in its pages, accessing any forms, and examining any requests it makes to build a comprehensive map of the website. In the end, Burp Scanner presents us with a map of the target, showing all publicly accessible data in a single place. If we select <code>Crawl and Audit</code>, Burp will run its scanner after its Crawler (as we will see later).</p>
+<p>Note: A Crawl scan only follows and maps links found in the page we specified, and any pages found on it. It does not perform a fuzzing scan to identify pages that are never referenced, like what dirbuster or ffuf would do. This can be done with Burp Intruder or Content Discovery, and then added to scope, if needed.</p>
+<p>Let us select <code>Crawl</code> as a start and go to the <code>Scan configuration</code> tab to configure our scan. From here, we may choose to click on <code>New</code> to build a custom configuration, which would allow us to set the configurations like the crawling speed or limit, whether Burp will attempt to log in to any login forms, and a few other configurations. For the sake of simplicity, we will click on the <code>Select from library</code> button, which gives us a few preset configurations we can pick from (or custom configurations we previously defined):</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_crawl_config.jpg" alt="Table of crawl configurations with names like &#39;Crawl limit - 10 minutes&#39; and &#39;Crawl strategy - fastest&#39;. All marked as built-in."></p>
+<p>We will select the <code>Crawl strategy - fastest</code> option and continue to the <code>Application login</code> tab. In this tab, we can add a set of credentials for Burp to attempt in any Login forms/fields it can find. We may also record a set of steps by performing a manual login in the pre-configured browser, such that Burp knows what steps to follow to gain a login session. This can be essential if we were running our scan using an authenticated user, which would allow us to cover parts of the web application that Burp may otherwise not have access to. As we do not have any credentials, we&#39;ll leave it empty.</p>
+<p>With that, we can click on the <code>Ok</code> button to start our Crawl scan. Once our scan starts, we can see its progress in the <code>Dashboard</code> tab under <code>Tasks</code>:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_crawl_progress.jpg" alt="Dashboard showing a task for crawling 46.101.23.188:30760 with &#39;fastest&#39; strategy. Progress: 76 requests, 2 errors, 10 locations crawled, 4s remaining."></p>
+<p>We may also click on the <code>View details</code> button on the tasks to see more details about the running scan or click on the gear icon to customize our scan configurations further. Finally, once our scan is complete, we&#39;ll see <code>Crawl Finished</code> in the task info, and then we can go back to (<code>Target&gt;Site map</code>) to view the updated site map:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_site_map_after.jpg" alt="Site map for http://46.101.23.188:30760 showing directories like &#39;devtools&#39; and &#39;index.php&#39;. Contents list GET requests with status 200, HTML, and titles like &#39;HTB Academy&#39;."></p>
+<hr>
+<h3 id="passive-scanner">Passive Scanner</h3>
+<p>Now that the site map is fully built, we may select to scan this target for potential vulnerabilities. When we choose the <code>Crawl and Audit</code> option in the <code>New Scan</code> dialog, Burp will perform two types of scans: A <code>Passive Vulnerability Scan</code> and an <code>Active Vulnerability Scan</code>.</p>
+<p>Unlike an Active Scan, a Passive Scan does not send any new requests but analyzes the source of pages already visited in the target/scope and then tries to identify <code>potential</code> vulnerabilities. This is very useful for a quick analysis of a specific target, like missing HTML tags or potential DOM-based XSS vulnerabilities. However, without sending any requests to test and verify these vulnerabilities, a Passive Scan can only suggest a list of potential vulnerabilities. Still, Burp Passive Scanner does provide a level of <code>Confidence</code> for each identified vulnerability, which is also helpful for prioritizing potential vulnerabilities.</p>
+<p>Let&#39;s start by trying to perform a Passive Scan only. To do so, we can once again select the target in (<code>Target&gt;Site map</code>) or a request in Burp Proxy History, then right-click on it and select <code>Do passive scan</code> or <code>Passively scan this target</code>. The Passive Scan will start running, and its task can be seen in the <code>Dashboard</code> tab as well. Once the scan finishes, we can click on <code>View Details</code> to review identified vulnerabilities and then select the <code>Issue activity</code> tab:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_passive_scan.jpg" alt="Issue activity table showing issues like &#39;Cookie without HttpOnly flag set&#39; and &#39;Frameable response (potential Clickjacking)&#39;. Severity: Information. Confidence: Certain or Firm."></p>
+<p>Alternately, we can view all identified issues in the <code>Issue activity</code> pane on the <code>Dashboard</code> tab. As we can see, it shows the list of potential vulnerabilities, their severity, and their confidence. Usually, we want to look for vulnerabilities with <code>High</code> severity and <code>Certain</code> confidence. However, we should include all levels of severity and confidence for very sensitive web applications, with a special focus on <code>High</code> severity and <code>Confident/Firm</code> confidence.</p>
+<hr>
+<h3 id="active-scanner">Active Scanner</h3>
+<p>We finally reach the most powerful part of Burp Scanner, which is its Active Vulnerability Scanner. An active scan runs a more comprehensive scan than a Passive Scan, as follows:</p>
+<ol>
+<li>It starts by running a Crawl and a web fuzzer (like dirbuster/ffuf) to identify all possible pages</li>
+<li>It runs a Passive Scan on all identified pages</li>
+<li>It checks each of the identified vulnerabilities from the Passive Scan and sends requests to verify them</li>
+<li>It performs a JavaScript analysis to identify further potential vulnerabilities</li>
+<li>It fuzzes various identified insertion points and parameters to look for common vulnerabilities like XSS, Command Injection, SQL Injection, and other common web vulnerabilities</li>
+</ol>
+<p>The Burp Active scanner is considered one of the best tools in that field and is frequently updated to scan for newly identified web vulnerabilities by the Burp research team.</p>
+<p>We can start an Active Scan similarly to how we began a Passive Scan by selecting the <code>Do active scan</code> from the right-click menu on a request in Burp Proxy History. Alternatively, we can run a scan on our scope with the <code>New Scan</code> button in the <code>Dashboard</code> tab, which would allow us to configure our active scan. This time, we will select the <code>Crawl and Audit</code> option, which would perform all of the above points and everything we have discussed so far.</p>
+<p>We may also set the Crawl configurations (as we discussed earlier) and the Audit configurations. The Audit configurations enable us to select what type of vulnerabilities we want to scan (defaults to all), where the scanner would attempt inserting its payloads, in addition to many other useful configurations. Once again, we can select a configuration preset with the <code>Select from library</code> button. For our test, as we are interested in <code>High</code> vulnerabilities that may allow us to gain control over the backend server, we will select the <code>Audit checks - critical issues only</code> option. Finally, we may add login details, as we previously saw with the Crawl configurations.</p>
+<p>Once we select our configurations, we can click on the <code>Ok</code> button to start the scan, and the active scan task should be added in the <code>Tasks</code> pane in the <code>Dashboard</code> tab:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_active_scan.jpg" alt="Dashboard showing a running task for crawl and audit of 142.93.35.92:32729. Audit checks for critical issues only. Progress: 3749 requests, 10 errors, 28 locations crawled, 1h 16m remaining."></p>
+<p>The scan will run all of the steps mentioned above, which is why it will take significantly longer to finish than our earlier scans depending on the configurations we selected. As the scan is running, we can view the various requests it is making by clicking on the <code>View details</code> button and selecting the <code>Logger</code> tab, or by going to the <code>Logger</code> tab in Burp, which shows all requests that went through or were made by Burp:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_logger.jpg" alt="Logger showing captured GET requests to 142.93.35.92. Paths include &#39;/index.php/search/18508&#39;. Status: 404. Capture filter: memory limit 100MB, requests and responses up to 1MB."></p>
+<p>Once the scan is done, we can look at the <code>Issue activity</code> pane in the <code>Dashboard</code> tab to view and filter all of the issues identified so far. From the filter above the results, let&#39;s select <code>High</code> and <code>Certain</code> and see our filtered results:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_high_vulnerabilities.jpg" alt="Issue activity showing OS command injection on host http://142.93.35.92:32729l. Insertion point: ip parameter. Severity: High. Confidence: Firm."></p>
+<p>We see that Burp identified an <code>OS command injection</code> vulnerability, which is ranked with a <code>High</code> severity and <code>Firm</code> confidence. As Burp is firmly confident that this severe vulnerability exists, we can read about it by clicking on it and reading the advisory shown and view the sent request and received response, to be able to know whether the vulnerability can be exploited or how it poses a threat on the webserver:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_vuln_details.jpg" alt="OS command injection issue with high severity and firm confidence on host http://142.93.35.92:32729. Details mention vulnerability to command injection using pipe character."></p>
+<hr>
+<h3 id="reporting">Reporting</h3>
+<p>Finally, once all of our scans are completed, and all potential issues have been identified, we can go to (<code>Target&gt;Site map</code>), right-click on our target, and select (<code>Issue&gt;Report issues for this host</code>). We will get prompted to select the export type for the report and what information we would like to include in the report. Once we export the report, we can open it in any web browser to view its details:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_scan_report.jpg" alt="Burp Scanner Report summary table showing issue counts by severity and confidence. High: 1 firm. Medium: 0. Low: 1 certain. Information: 2 certain, 3 firm. Total issues: 5."></p>
+<p>As we can see, Burp&#39;s report is very organized and can be customized to only include select issues by severity/confidence. It also shows proof-of-concept details of how to exploit the vulnerability and information on how to remediate it. These reports may be used as supplementary data for the detailed reports that we prepare for our clients or the web application developers when performing a web penetration test or can be stored for our future reference. We should never merely export a report from any penetration tool and submit it to a client as the final deliverable. Instead, the reports and data generated by tools can be helpful as appendix data for clients who may need the raw scan data for remediation efforts or to import into a tracking dashboard.</p>
+<hr>
+<h2 id="zap-scanner">ZAP Scanner</h2>
+<hr>
+<p>ZAP also comes bundled with a Web Scanner similar to Burp Scanner. ZAP Scanner is capable of building site maps using ZAP Spider and performing both passive and active scans to look for various types of vulnerabilities.</p>
+<hr>
+<h3 id="spider">Spider</h3>
+<p>Let&#39;s start with <code>ZAP Spider</code>, which is similar to the Crawler feature in Burp. To start a Spider scan on any website, we can locate a request from our History tab and select (<code>Attack&gt;Spider</code>) from the right-click menu. Another option is to use the HUD in the pre-configured browser. Once we visit the page or website we want to start our Spider scan on, we can click on the second button on the right pane (<code>Spider Start</code>), which would prompt us to start the scan:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/zap_spider.jpg" alt="HTB Academy Customer Support page with contact info: http://academy.htb/customer-support.php and support@academy.htb."></p>
+<p>Note: When we click on the Spider button, ZAP may tell us that the current website is not in our scope, and will ask us to automatically add it to the scope before starting the scan, to which we can say &#39;Yes&#39;. The Scope is the set of URLs ZAP will test if we start a generic scan, and it can be customized by us to scan multiple websites and URLs. Try to add multiple targets to the scope to see how the scan would run differently.</p>
+<p>Note: In some versions of browsers, the ZAP&#39;s HUD might not work as intended.</p>
+<p>Once we click on <code>Start</code> on the pop-up window, our Spider scan should start spidering the website by looking for links and validating them, very similar to how Burp Crawler works. We can see the progress of the spider scan both in the HUD on the <code>Spider</code> button or in the main ZAP UI, which should automatically switch to the current Spider tab to show the progress and sent requests. When our scan is complete, we can check the Sites tab on the main ZAP UI, or we can click on the first button on the right pane (<code>Sites Tree</code>), which should show us an expandable tree-list view of all identified websites and their sub-directories: <img src="https://academy.hackthebox.com/storage/modules/110/zap_sites.jpg" alt="Sites Tree showing URLs and files: http://46.101.23.188:30873, devtools, index.php, robots.txt, sitemap.xml, wp-comments-post.php."></p>
+<p>Tip: ZAP also has a different type of Spider called <code>Ajax Spider</code>, which can be started from the third button on the right pane. The difference between this and the normal scanner is that Ajax Spider also tries to identify links requested through JavaScript AJAX requests, which may be running on the page even after it loads. Try running it after the normal Spider finishes its scan, as this may give a better output and add a few links the normal Spider may have missed, though it may take a little bit longer to finish.</p>
+<hr>
+<h3 id="passive-scanner">Passive Scanner</h3>
+<p>As ZAP Spider runs and makes requests to various end-points, it is automatically running its passive scanner on each response to see if it can identify potential issues from the source code, like missing security headers or DOM-based XSS vulnerabilities. This is why even before running the Active Scanner, we may see the alerts button start to get populated with a few identified issues. The alerts on the left pane shows us issues identified in the current page we are visiting, while the right pane shows us the overall alerts on this web application, which includes alerts found on other pages:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/zap_alerts.jpg" alt="HTB Academy Customer Support page with contact info: http://academy.htb/customer-support.php, support@academy.htb. Page alerts: Medium."></p>
+<p>We can also check the <code>Alerts</code> tab on the main ZAP UI to see all identified issues. If we click on any alert, ZAP will show us its details and the pages it was found on:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/zap_site_alerts.jpg" alt="Site Alerts: Medium. X-Frame-Options Header Not Set for multiple URLs including http://46.101.23.188:30873/ and related paths."></p>
+<hr>
+<h3 id="active-scanner">Active Scanner</h3>
+<p>Once our site&#39;s tree is populated, we can click on the <code>Active Scan</code> button on the right pane to start an active scan on all identified pages. If we have not yet run a Spider Scan on the web application, ZAP will automatically run it to build a site tree as a scan target. Once the Active Scan starts, we can see its progress similarly to how we did with the Spider Scan:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/zap_active_scan.jpg" alt="HTB Academy Customer Support page with contact info: http://academy.htb/customer-support.php, support@academy.htb. Active Scan at 4%."></p>
+<p>The Active Scanner will try various types of attacks against all identified pages and HTTP parameters to identify as many vulnerabilities as it can. This is why the Active Scanner will take longer to complete. As the Active Scan runs, we will see the alerts button start to get populated with more alerts as ZAP uncovers more issues. Furthermore, we can check the main ZAP UI for more details on the running scan and can view the various requests sent by ZAP:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/zap_active_scan_progress.jpg" alt="Active scan at 42% on http://46.101.23.188:30873, showing request details including method, URL, status code, and response time."></p>
+<p>Once the Active Scan finishes, we can view the alerts to see which ones to follow up on. While all alerts should be reported and taken into consideration, the <code>High</code> alerts are the ones that usually lead to directly compromising the web application or the back-end server. If we click on the <code>High Alerts</code> button, it will show us the identified High Alert: <img src="https://academy.hackthebox.com/storage/modules/110/zap_high_alert.jpg" alt="Site Alerts: High. Remote OS Command Injection detected."></p>
+<p>We can also click on it to see more details about it and see how we may replicate and patch this vulnerability:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/zap_alert_details.jpg" alt="Remote OS Command Injection alert. High risk, medium confidence. Attack example: 127.0.0.1\&amp;cat /etc/passwd&amp;. Evidence: root:x:0:0."></p>
+<p>In the alert details window, we can also click on the URL to see the request and response details that ZAP used to identify this vulnerability, and we may also repeat the request through ZAP HUD or ZAP Request Editor:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/zap_alert_evidence.jpg" alt="HTTP Message showing user account details from /etc/passwd. Options: Active Scan, Replay in Console, Replay in Browser."></p>
+<hr>
+<h3 id="reporting">Reporting</h3>
+<p>Finally, we can generate a report with all of the findings identified by ZAP through its various scans. To do so, we can select (<code>Report&gt;Generate HTML Report</code>) from the top bar, which would prompt us for the save location to save the report. We may also export the report in other formats like <code>XML</code> or <code>Markdown</code>. Once we generate our report, we can open it in any browser to view it:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/zap_report.jpg" alt="Summary of Alerts: 1 High, 3 Medium, 8 Low, 6 Informational. Alerts include Remote OS Command Injection, Cross-Domain Misconfiguration, Directory Browsing, and others."></p>
+<p>As we can see, the report shows all identified details in an organized manner, which may be helpful to keep as a log for various web applications we run our scans on during a penetration test.</p>
+<hr>
+<h2 id="extensions">Extensions</h2>
+<hr>
+<p>Both Burp and ZAP have extension capabilities, such that the community of Burp users can develop extensions for Burp for everyone to use. Such extensions can perform specific actions on any captured requests, for example, or add new features, like decoding and beautifying code. Burp allows extensibility through its <code>Extender</code> feature and its <a href="https://portswigger.net/bappstore">BApp Store</a>, while ZAP has its <a href="https://www.zaproxy.org/addons/">ZAP Marketplace</a> to install new plugins.</p>
+<hr>
+<h3 id="bapp-store">BApp Store</h3>
+<p>To find all available extensions, we can click on the <code>Extender</code> tab within Burp and select the <code>BApp Store</code> sub-tab. Once we do this, we will see a host of extensions. We can sort them by <code>Popularity</code> so that we know which ones users are finding most useful:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_bapp_store.jpg" alt="BApp Store showing Burp extensions. Active Scan++ highlighted, last updated 25 Mar 2021. Features include host header attacks, edge side includes, XML input handling."></p>
+<p>Note: Some extensions are for Pro users only, while most others are available to everyone.</p>
+<p>We see many useful extensions, take some time to go through them and see which are most useful to you, and then try installing and testing them. Let&#39;s try installing the <code>Decoder Improved</code> extension:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_extension.jpg" alt="BApp Store showing Burp extensions. Decoder Improved installed, last updated 19 Feb 2021. Features include encoding, decoding, hashing, tabs, Unicode support, and hex editor."></p>
+<p>Note: Some extensions have requirements that are not usually installed on Linux/macOS/Windows by default, like `Jython`, so you have to install them before being able to install the extension.</p>
+<p>Once we install <code>Decoder Improved</code>, we will see its new tab added to Burp. Each extension has a different usage, so we may click on any extension&#39;s documentation in <code>BApp Store</code> to read more about it or visit its GitHub page for more information about its usage. We can use this extension just as we would use Burp&#39;s Decoder, with the benefit of having many additional encoders included. For example, we can input text we want to be hashed with <code>MD5</code>, and select <code>Hash With&gt;MD5</code>:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/burp_extension_decoder_improved.jpg" alt="Decoder Improved interface showing &#39;HTB Academy&#39; text, hex view, and options for hashing with MD5 and encoding as plain text."></p>
+<p>Similarly, we can perform other types of encoding and hashing. There are many other Burp Extensions that can be utilized to further extend the functionality of Burp.</p>
+<p>Some extensions worth checking out include, but are not limited to:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>.NET beautifier</td>
+<td>J2EEScan</td>
+<td>Software Vulnerability Scanner</td>
+</tr>
+<tr>
+<td>Software Version Reporter</td>
+<td>Active Scan++</td>
+<td>Additional Scanner Checks</td>
+</tr>
+<tr>
+<td>AWS Security Checks</td>
+<td>Backslash Powered Scanner</td>
+<td>Wsdler</td>
+</tr>
+<tr>
+<td>Java Deserialization Scanner</td>
+<td>C02</td>
+<td>Cloud Storage Tester</td>
+</tr>
+<tr>
+<td>CMS Scanner</td>
+<td>Error Message Checks</td>
+<td>Detect Dynamic JS</td>
+</tr>
+<tr>
+<td>Headers Analyzer</td>
+<td>HTML5 Auditor</td>
+<td>PHP Object Injection Check</td>
+</tr>
+<tr>
+<td>JavaScript Security</td>
+<td>Retire.JS</td>
+<td>CSP Auditor</td>
+</tr>
+<tr>
+<td>Random IP Address Header</td>
+<td>Autorize</td>
+<td>CSRF Scanner</td>
+</tr>
+<tr>
+<td>JS Link Finder</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h3 id="zap-marketplace">ZAP Marketplace</h3>
+<p>ZAP also has its own extensibility feature with the <code>Marketplace</code> that allows us to install various types of community-developed add-ons. To access ZAP&#39;s marketplace, we can click on the <code>Manage Add-ons</code> button and then select the <code>Marketplace</code> tab:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/zap_marketplace_button.jpg" alt="Toolbar with &#39;Standard Mode&#39; selected, &#39;Sites&#39; section, and &#39;Manage Add-ons&#39; button highlighted."></p>
+<p>In this tab, we can see the different available add-ons for ZAP. Some add-ons may be in their <code>Release</code> build, meaning that they should be stable to be used, while others are in their <code>Beta/Alpha</code> builds, which means that they may experience some issues in their use. Let&#39;s try installing the <code>FuzzDB Files</code> and <code>FuzzDB Offensive</code> add-ons, which adds new wordlists to be used in ZAP&#39;s fuzzer: <img src="https://academy.hackthebox.com/storage/modules/110/zap_fuzzdb_install.jpg" alt="Marketplace tab showing add-ons. Selected: FuzzDB Files and FuzzDB Offensive, both in Release status. Options to install or get more info."></p>
+<p>Now, we will have the option to pick from the various wordlists and payloads provided by FuzzDB when performing an attack. For example, suppose we were to perform a Command Injection fuzzing attack on one of the exercises we previously used in this module. In that case, we will see that we have more options in the <code>File Fuzzers</code> wordlists, including an OS Command Injection wordlist under (<code>fuzzdb&gt;attack&gt;os-cmd-execution</code>), which would be perfect for this attack:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/zap_fuzzdb_cmd_exec.jpg" alt="File Fuzzers type selected. Files listed with &#39;command\_execution-unix.txt&#39; checked. Payloads preview shows command execution examples."></p>
+<p>Now, if we run the fuzzer on our exercise using the above wordlist, we will see that it was able to exploit it in various ways, which would be very helpful if we were dealing with a WAF protected web application:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/110/zap_fuzzer_cmd_inj.jpg" alt="Fuzzer progress at 62% on http://139.59.6.56:31133/ping. Messages sent: 34, Errors: 8. Task IDs with status 200 OK, showing payloads like &#39;;id&#39; and &#39;/usr/bin/id&#39;."></p>
+<p>Try to repeat the above with the first exercise in this module to see how add-ons can help in making your penetration test easier.</p>
+<hr>
+<h3 id="closing-thoughts">Closing Thoughts</h3>
+<p>Throughout this module, we have demonstrated the power of both Burp Suite and ZAP proxies and analyzed the differences and similarities between the free and pro versions of Burp and the free and open-source ZAP proxy. These tools are essential for penetration testers focused on web application security assessments but have many applications for all offensive security practitioners as well blue team practitioners and developers. After working through each of the examples and exercises in this module, attempt some web attack-focused boxes on the main Hack The Box platform and other web application security-related modules within HTB Academy to strengthen your skillsets around both of these tools. They are must-haves in your toolbox alongside Nmap, Hashcat, Wireshark, tcpdump, sqlmap, Ffuf, Gobuster, etc.</p>
+<p>\</p>
+<hr>

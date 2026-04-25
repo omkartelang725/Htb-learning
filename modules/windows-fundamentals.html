@@ -1,0 +1,1958 @@
+
+<body>
+  <div class="container">
+<link rel="stylesheet" href="style.css">
+
+<h1 id="windows-fundamentals">Windows Fundamentals</h1>
+<h2 id="introduction-to-windows">Introduction to Windows</h2>
+<p>As a penetration tester, it is important to have knowledge of a wide variety of technologies. A thorough understanding of Windows and Linux operating systems is beneficial in a wide range of assessment types. The majority of systems that we encounter during assessments, whether on-premise or in the cloud, will be based on these two operating systems. It is important to understand how to attack and defend these operating systems and how they can each be used as a platform to perform further penetration testing activities.</p>
+<hr>
+<h3 id="the-windows-operating-system">The Windows Operating System</h3>
+<p>Microsoft first introduced the Windows operating system on November 20, 1985. The first version of Windows was a graphical operating system shell for MS-DOS. Later versions of Windows Desktop introduced the Windows File Manager, Program Manager, and Print Manager programs.</p>
+<p>Windows 95 was the first full integration of Windows and DOS and offered built-in Internet support for the first time. This version also debuted the Internet Explorer web browser. Since the initial version, there have been over a dozen versions of Windows released, such as Windows XP, Vista, and 8, up to the current version: Windows 11. Over time, Microsoft has offered various editions of each Windows Desktop release catering to everyone from casual consumers to enterprise customers.</p>
+<p>Windows Server was first released in 1993 with the release of Windows NT 3.1 Advanced Server. Windows NT saw several updates over the years, adding in technologies such as Internet Information Services (IIS), various networking protocols, Administrative Wizards to facilitate admin tasks, and more. With the release of Windows 2000, Microsoft debuted Active Directory, originally intended to help sysadmins set up file sharing, data encryption, VPNs, etc. Windows Server 2000 also included the Microsoft Management Console (MMC) and supported dynamic disk volumes.</p>
+<p>Windows Server 2003 came next with server roles, a built-in firewall, the Volume Shadow Copy Service, and more. Windows Server 2008 included failover clustering, Hyper-V virtualization software, Server Core, Event Viewer, and major enhancements to Active Directory. Over the years, Microsoft released further Server versions, including Server 2012, Server 2016, and most recently, Server 2019. This latest version added support for Kubernetes, Linux containers, and more advanced security features.</p>
+<p>As new versions of Windows are introduced, older versions are deprecated and no longer receive Microsoft updates (unless a long-term support contract is purchased in some cases). Windows Server 2008 and 2012 reached end of life for security updates on January 14, 2020. Currently, only Server 2012 R2 and later are in support. However, Microsoft has released out-of-band patches for earlier versions of Windows in the past few years due to the discovery of the critical SMBv1 vulnerability (EternalBlue).</p>
+<p>Many versions of Windows are now deemed &quot;legacy&quot; and are no longer supported. Organizations often find themselves running various older operating systems to support critical applications or due to operational or budgetary concerns. An assessor needs to understand the differences between versions and the various misconfigurations and vulnerabilities inherent to each.</p>
+<hr>
+<h3 id="windows-versions">Windows Versions</h3>
+<p>The following is a list of the major Windows operating systems and associated version numbers:</p>
+<table>
+<thead>
+<tr>
+<th>Operating System Names</th>
+<th>Version Number</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Windows NT 4</td>
+<td>4.0</td>
+</tr>
+<tr>
+<td>Windows 2000</td>
+<td>5.0</td>
+</tr>
+<tr>
+<td>Windows XP</td>
+<td>5.1</td>
+</tr>
+<tr>
+<td>Windows Server 2003, 2003 R2</td>
+<td>5.2</td>
+</tr>
+<tr>
+<td>Windows Vista, Server 2008</td>
+<td>6.0</td>
+</tr>
+<tr>
+<td>Windows 7, Server 2008 R2</td>
+<td>6.1</td>
+</tr>
+<tr>
+<td>Windows 8, Server 2012</td>
+<td>6.2</td>
+</tr>
+<tr>
+<td>Windows 8.1, Server 2012 R2</td>
+<td>6.3</td>
+</tr>
+<tr>
+<td>Windows 10, Server 2016, Server 2019</td>
+<td>10.0</td>
+</tr>
+</tbody>
+</table>
+<p>We can use the <a href="https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.management/get-wmiobject?view=powershell-5.1">Get-WmiObject</a> <a href="https://docs.microsoft.com/en-us/powershell/scripting/developer/cmdlet/cmdlet-overview?view=powershell-7">cmdlet</a> to find information about the operating system. This cmdlet can be used to get instances of WMI classes or information about available WMI classes. There are a variety of ways to find the version and build number of our system. We can easily obtain this information using the <code>win32_OperatingSystem</code> class, which shows that we are on a Windows 10 host, build number 19041.</p>
+<pre><code class="lang-powershell-session">PS <span class="hljs-keyword">C</span>:\htb&gt; <span class="hljs-keyword">Get</span>-WmiObject -Class win32_OperatingSystem | select <span class="hljs-keyword">Version</span>,BuildNumber
+
+<span class="hljs-keyword">Version</span>    BuildNumber
+-------    -----------
+<span class="hljs-number">10.0</span><span class="hljs-number">.19041</span> <span class="hljs-number">19041</span>
+</code></pre>
+<p>Some other useful classes that can be used with <code>Get-WmiObject</code> are <code>Win32_Process</code> to get a process listing, <code>Win32_Service</code> to get a listing of services, and <code>Win32_Bios</code> to get <a href="https://en.wikipedia.org/wiki/BIOS">Basic Input/Output System</a> (<code>BIOS</code>) information. The BIOS is firmware installed on a computer&#39;s motherboard that controls the computer&#39;s essential functions, such as power management, input/output interfaces, and system configuration. We can use the <code>ComputerName</code> parameter to get information about remote computers. <code>Get-WmiObject</code> can be used to start and stop services on local and remote computers, and more. Further information about the cmdlet can be found <a href="https://ss64.com/ps/get-wmiobject.html">here</a> and <a href="https://adamtheautomator.com/get-wmiobject/">here</a>.</p>
+<hr>
+<h3 id="accessing-windows">Accessing Windows</h3>
+<p><strong>Local Access Concepts</strong></p>
+<p>If you are reading these words right now, you have local access to a computer of some kind. Be it a smartphone, tablet, laptop, Raspberry Pi, or Desktop. Local access is the most common way to access any computer, including computers running Windows. <code>Input</code> is likely happening through a keyboard, trackpad &amp;/or mouse. <code>Output</code> is coming from the display screen(s). Organizations with office space where employees work on a day-to-day basis build security policies and security controls around the idea that their employees are working in dedicated workspaces on computers owned by the organization. It is becoming more common to see organizations increasing their support for remote work with their non-technical and technical workforces. This is not a new reality for technical professionals working in IT, Software Development &amp; Infosec. On any given day, a technical professional could be accessing multiple machines locally and remotely. With that, let&#39;s discuss the concept of remote access.</p>
+<p><strong>Remote Access Concepts</strong></p>
+<p>Remote Access is accessing a computer over a network. Local access to a computer is needed before one can access another computer remotely. There are countless methods for remote access. In this module, we will mainly use remote access methods to connect to and interact with Windows operating systems. Advances in Networking &amp; Internet technologies have given birth to entire industries that rely completely on remote access &amp; remote administration of computer systems.</p>
+<p>Consider <a href="https://www.techtarget.com/searchitchannel/definition/managed-service-provider">MSPs</a> &amp; <a href="https://www.gartner.com/en/information-technology/glossary/mssp-managed-security-service-provider">MSSPs</a>, both industries are primarily dependent on managing their client&#39;s computer systems remotely. This functionality allows them to centralize management, standardize what technologies are used, automate numerous tasks, enable remote work arrangements and allow for quick response time when issues surface, or potential security threats emerge. Remote access is not just limited to MSPs &amp; MSSPs. Organizations with IT, Software Development &amp;/or Security teams use remote access methods daily to build applications, manage servers and administer employee workstations. Some of the most common remote access technologies include but aren&#39;t limited to:</p>
+<ul>
+<li>Virtual Private Networks (VPN)</li>
+<li>Secure Shell (SSH)</li>
+<li>File Transfer Protocol (FTP)</li>
+<li>Virtual Network Computing (VNC)</li>
+<li>Windows Remote Management (or PowerShell Remoting) (WinRM)</li>
+<li>Remote Desktop Protocol (RDP)</li>
+</ul>
+<p>We will focus primarily on using RDP in this module.</p>
+<p><strong>Remote Desktop Protocol (RDP)</strong></p>
+<p>RDP uses a client/server architecture where a client-side application is used to specify a computer&#39;s target IP address or hostname over a network where RDP access is enabled. The target computer where RDP remote access is enabled is considered the server. It is important to note that RDP listens by default on logical port <code>3389</code>. Keep in mind that an IP address is used as a logical identifier for a computer on a network, and a logical port is an identifier assigned to an application. In simpler terms, we could consider a network subnet a street in a town (the corporate network), an IP address in that subnet assigned to a host as a house on that street, and logical ports as windows/doors that can be used to access the house.</p>
+<p>Once a request (encapsulated inside a packet) has reached a destination computer via its IP address, the request will be directed to an application hosted on the computer based on the port specified in that request (included as a header inside a packet). IP addressing and protocol encapsulation are covered in greater detail in the module <a href="https://academy.hackthebox.com/module/details/34">Introduction to Networking</a>. From a networking perspective, in this module, we only need to understand that every computer has an IP address assigned to communicate over a network, and applications hosted on target computers listen on specific logical ports.</p>
+<p>We can use RDP to connect to a Windows target from an attack host running Linux or Windows. If we are connecting to a Windows target from a Windows host, we can use the built-in RDP client application called <code>Remote Desktop Connection</code> (<a href="https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/mstsc">mstsc.exe</a>). Check out the clip below to see basic usage:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/49/UsingRemoteDesktopConnection.gif" alt="GIF showcasing the usage of the Remote Desktop Connection application."></p>
+<p>For this to work, remote access must already be <a href="https://docs.microsoft.com/en-us/windows-server/remote/remote-desktop-services/clients/remote-desktop-allow-access">allowed</a> on the target Windows system. By default, remote access is not allowed on Windows operating systems. The HTB Academy team has configured many of our Windows targets to permit RDP access once connected to the Academy labs via VPN.</p>
+<p>Remote Desktop Connection also allows us to save connection profiles. This is a common habit among IT admins because it makes connecting to remote systems more convenient.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/49/SavingRDPConnections.gif" alt="GIF showcasing the saving of credentials in the Remote Desktop Connection application."></p>
+<p>As pentesters, we can benefit from looking for these saved Remote Desktop Files (<code>.rdp</code>) while on an engagement.</p>
+<p>Many other Remote Desktop client applications exist, some of which are listed in this Microsoft article called <a href="https://docs.microsoft.com/en-us/windows-server/remote/remote-desktop-services/clients/remote-desktop-clients">Remote Desktop clients</a>. We will not cover every Remote Desktop client application in this module.</p>
+<p><strong>Using xfreerdp</strong></p>
+<p>From a Linux-based attack host we can use a tool called <a href="https://linux.die.net/man/1/xfreerdp">xfreerdp</a> to remotely access Windows targets. You will notice that we use xfreerdp across multiple modules because of its ease of use, feature set, command line utility, and efficiency. Check out the clip below to see basic usage from Pwnbox:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/49/ConnectingwithXfreerdp.gif" alt="GIF showcasing the usage of the xfreerdp tool on the Linux workstation."></p>
+<p>Remember that we can also copy and paste in xfreerdp commands in the command line, so we do not need to enter options manually. There are several options available to us with xfreerdp, such as drive redirection to be able to transfer files to/from the target host, which are worth practicing and we will cover in other modules within HTB Academy.</p>
+<p>Other RDP clients exist, such as <a href="https://remmina.org/">Remmina</a> and <a href="http://www.rdesktop.org/">rdesktop</a>, and we encourage you to experiment with others and see what works best for you. Now that we have covered these concepts let&#39;s apply them by spawning the target below and connecting to it using RDP with the credentials provided.</p>
+<hr>
+<h2 id="operating-system-structure">Operating System Structure</h2>
+<hr>
+<p>In Windows operating systems, the root directory is \<drive\_letter>:\ (commonly C drive). The root directory (also known as the boot partition) is where the operating system is installed. Other physical and virtual drives are assigned other letters, for example, Data (E:). The directory structure of the boot partition is as follows:</p>
+<table>
+<thead>
+<tr>
+<th>Directory</th>
+<th>Function</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Perflogs</td>
+<td>Can hold Windows performance logs but is empty by default.</td>
+</tr>
+<tr>
+<td>Program Files</td>
+<td>On 32-bit systems, all 16-bit and 32-bit programs are installed here. On 64-bit systems, only 64-bit programs are installed here.</td>
+</tr>
+<tr>
+<td>Program Files (x86)</td>
+<td>32-bit and 16-bit programs are installed here on 64-bit editions of Windows.</td>
+</tr>
+<tr>
+<td>ProgramData</td>
+<td>This is a hidden folder that contains data that is essential for certain installed programs to run. This data is accessible by the program no matter what user is running it.</td>
+</tr>
+<tr>
+<td>Users</td>
+<td>This folder contains user profiles for each user that logs onto the system and contains the two folders Public and Default.</td>
+</tr>
+<tr>
+<td>Default</td>
+<td>This is the default user profile template for all created users. Whenever a new user is added to the system, their profile is based on the Default profile.</td>
+</tr>
+<tr>
+<td>Public</td>
+<td>This folder is intended for computer users to share files and is accessible to all users by default. This folder is shared over the network by default but requires a valid network account to access.</td>
+</tr>
+<tr>
+<td>AppData</td>
+<td>Per user application data and settings are stored in a hidden user subfolder (i.e., cliff.moore\AppData). Each of these folders contains three subfolders. The Roaming folder contains machine-independent data that should follow the user&#39;s profile, such as custom dictionaries. The Local folder is specific to the computer itself and is never synchronized across the network. LocalLow is similar to the Local folder, but it has a lower data integrity level. Therefore it can be used, for example, by a web browser set to protected or safe mode.</td>
+</tr>
+<tr>
+<td>Windows</td>
+<td>The majority of the files required for the Windows operating system are contained here.</td>
+</tr>
+<tr>
+<td>System, System32, SysWOW64</td>
+<td>Contains all DLLs required for the core features of Windows and the Windows API. The operating system searches these folders any time a program asks to load a DLL without specifying an absolute path.</td>
+</tr>
+<tr>
+<td>WinSxS</td>
+<td>The Windows Component Store contains a copy of all Windows components, updates, and service packs.</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h3 id="exploring-directories-using-command-line">Exploring Directories Using Command Line</h3>
+<p>We can explore the file system using the <a href="https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/dir">dir</a> command.</p>
+<pre><code class="lang-cmd-session">C:\htb&gt; dir c:\ /a
+ Volume in drive C has no label.
+ Volume Serial Number is F416-<span class="hljs-number">77</span>BE
+
+ Directory of c:\
+
+<span class="hljs-number">08/16/2020</span>  <span class="hljs-number">10</span>:<span class="hljs-number">33</span> AM    &lt;DIR&gt;          $Recycle.Bin
+<span class="hljs-number">06/25/2020</span>  <span class="hljs-number">06</span>:<span class="hljs-number">25</span> PM    &lt;DIR&gt;          $WinREAgent
+<span class="hljs-number">07/02/2020</span>  <span class="hljs-number">12</span>:<span class="hljs-number">55</span> PM             <span class="hljs-number">1</span>,<span class="hljs-number">024</span> AMTAG.BIN
+<span class="hljs-number">06/25/2020</span>  <span class="hljs-number">03</span>:<span class="hljs-number">38</span> PM    &lt;JUNCTION&gt;     Documents and Settings [C:\Users]
+<span class="hljs-number">08/13/2020</span>  <span class="hljs-number">06</span>:<span class="hljs-number">03</span> PM             <span class="hljs-number">8</span>,<span class="hljs-number">192</span> DumpStack.log
+<span class="hljs-number">08/17/2020</span>  <span class="hljs-number">12</span>:<span class="hljs-number">11</span> PM             <span class="hljs-number">8</span>,<span class="hljs-number">192</span> DumpStack.log.tmp
+<span class="hljs-number">08/27/2020</span>  <span class="hljs-number">10</span>:<span class="hljs-number">42</span> AM    <span class="hljs-number">37</span>,<span class="hljs-number">752,373</span>,<span class="hljs-number">248</span> hiberfil.sys
+<span class="hljs-number">08/17/2020</span>  <span class="hljs-number">12</span>:<span class="hljs-number">11</span> PM    <span class="hljs-number">13</span>,<span class="hljs-number">421,772</span>,<span class="hljs-number">800</span> pagefile.sys
+<span class="hljs-number">12/07/2019</span>  <span class="hljs-number">05</span>:<span class="hljs-number">14</span> AM    &lt;DIR&gt;          PerfLogs
+<span class="hljs-number">08/24/2020</span>  <span class="hljs-number">10</span>:<span class="hljs-number">38</span> AM    &lt;DIR&gt;          Program Files
+<span class="hljs-number">07/09/2020</span>  <span class="hljs-number">06</span>:<span class="hljs-number">08</span> PM    &lt;DIR&gt;          Program Files (x86)
+<span class="hljs-number">08/24/2020</span>  <span class="hljs-number">10</span>:<span class="hljs-number">41</span> AM    &lt;DIR&gt;          ProgramData
+<span class="hljs-number">06/25/2020</span>  <span class="hljs-number">03</span>:<span class="hljs-number">38</span> PM    &lt;DIR&gt;          Recovery
+<span class="hljs-number">06/25/2020</span>  <span class="hljs-number">03</span>:<span class="hljs-number">57</span> PM             <span class="hljs-number">2</span>,<span class="hljs-number">918</span> RHDSetup.log
+<span class="hljs-number">08/17/2020</span>  <span class="hljs-number">12</span>:<span class="hljs-number">11</span> PM        <span class="hljs-number">16,777,216</span> swapfile.sys
+<span class="hljs-number">08/26/2020</span>  <span class="hljs-number">02</span>:<span class="hljs-number">51</span> PM    &lt;DIR&gt;          System Volume Information
+<span class="hljs-number">08/16/2020</span>  <span class="hljs-number">10</span>:<span class="hljs-number">33</span> AM    &lt;DIR&gt;          Users
+<span class="hljs-number">08/17/2020</span>  <span class="hljs-number">11</span>:<span class="hljs-number">38</span> PM    &lt;DIR&gt;          Windows
+               <span class="hljs-number">7</span> File(s) <span class="hljs-number">51,190,943</span>,<span class="hljs-number">590</span> bytes
+              <span class="hljs-number">13</span> Dir(s)  <span class="hljs-number">261,310</span>,<span class="hljs-number">697,472</span> bytes free
+</code></pre>
+<p>The <a href="https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/tree">tree</a> utility is useful for graphically displaying the directory structure of a path or disk.</p>
+<pre><code class="lang-cmd-session">C:\htb&gt; tree <span class="hljs-string">"c:\Program Files (x86)\VMware"</span>
+Folder PATH listing
+Volume serial <span class="hljs-keyword">number</span> <span class="hljs-keyword">is</span> F416-<span class="hljs-number">77</span>BE
+C:\PROGRAM FILES (X86)\VMWARE
+├───VMware VIX
+│   ├───doc
+│   │   ├───errors
+│   │   ├───features
+│   │   ├───lang
+│   │   │   └───<span class="hljs-keyword">c</span>
+│   │   │       └───functions
+│   │   └───types
+│   ├───samples
+│   └───Workstation-<span class="hljs-number">15.0</span>.<span class="hljs-number">0</span>
+│       ├───<span class="hljs-number">32</span>bit
+│       └───<span class="hljs-number">64</span>bit
+└───VMware Workstation
+    ├───env
+    ├───hostd
+    │   ├───coreLocale
+    │   │   └───<span class="hljs-keyword">en</span>
+    │   ├───docroot
+    │   │   ├───client
+    │   │   └───sdk
+    │   ├───extensions
+    │   │   └───hostdiag
+    │   │       └───locale
+    │   │           └───<span class="hljs-keyword">en</span>
+    │   └───vimLocale
+    │       └───<span class="hljs-keyword">en</span>
+    ├───ico
+    ├───<span class="hljs-keyword">messages</span>
+    │   ├───ja
+    │   └───zh_CN
+    ├───OVFTool
+    │   ├───env
+    │   │   └───<span class="hljs-keyword">en</span>
+    │   └───schemas
+    │       ├───DMTF
+    │       └───vmware
+    ├───Resources
+    ├───tools-upgraders
+    └───x64
+</code></pre>
+<p>The <code>tree</code> command can provide us with a large amount of information. The following command can be used to walk through all the files in the C drive, one screen at a time. This command can be modified to be run against any directory.</p>
+<pre><code class="lang-cmd-session"><span class="hljs-built_in">tree</span> c:\ /f | <span class="hljs-built_in">more</span>
+</code></pre>
+<hr>
+<h2 id="file-system">File System</h2>
+<hr>
+<p>There are 5 types of Windows file systems: FAT12, FAT16, FAT32, NTFS, and exFAT. FAT12 and FAT16 are no longer used on modern Windows operating systems. We will touch upon the FAT32 and exFAT file systems for this training, but our main focus will be the NTFS file system.</p>
+<p>FAT32 (File Allocation Table) is widely used across many types of storage devices such as USB memory sticks and SD cards but can also be used to format hard drives. The &quot;32&quot; in the name refers to the fact that FAT32 uses 32 bits of data for identifying data clusters on a storage device.</p>
+<p><strong><code>Pros of FAT32:</code></strong></p>
+<ul>
+<li>Device compatibility - it can be used on computers, digital cameras, gaming consoles, smartphones, tablets, and more.</li>
+<li>Operating system cross-compatibility - It works on all Windows operating systems starting from Windows 95 and is also supported by MacOS and Linux.</li>
+</ul>
+<p><strong><code>Cons of FAT32:</code></strong></p>
+<ul>
+<li>Can only be used with files that are less than 4GB.</li>
+<li>No built-in data protection or file compression features.</li>
+<li>Must use third-party tools for file encryption.</li>
+</ul>
+<p>NTFS (New Technology File System) is the default Windows file system since Windows NT 3.1. In addition to making up for the shortcomings of FAT32, NTFS also has better support for metadata and better performance due to improved data structuring.</p>
+<p><strong><code>Pros of NTFS:</code></strong></p>
+<ul>
+<li>NTFS is reliable and can restore the consistency of the file system in the event of a system failure or power loss.</li>
+<li>Provides security by allowing us to set granular permissions on both files and folders.</li>
+<li>Supports very large-sized partitions.</li>
+<li>Has journaling built-in, meaning that file modifications (addition, modification, deletion) are logged.</li>
+</ul>
+<p><strong><code>Cons of NTFS:</code></strong></p>
+<ul>
+<li>Most mobile devices do not support NTFS natively.</li>
+<li>Older media devices such as TVs and digital cameras do not offer support for NTFS storage devices.</li>
+</ul>
+<hr>
+<h3 id="permissions">Permissions</h3>
+<p>The NTFS file system has many basic and advanced permissions. Some of the key permission types are:</p>
+<table>
+<thead>
+<tr>
+<th>Permission Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Full Control</td>
+<td>Allows reading, writing, changing, deleting of files/folders.</td>
+</tr>
+<tr>
+<td>Modify</td>
+<td>Allows reading, writing, and deleting of files/folders.</td>
+</tr>
+<tr>
+<td>List Folder Contents</td>
+<td>Allows for viewing and listing folders and subfolders as well as executing files. Folders only inherit this permission.</td>
+</tr>
+<tr>
+<td>Read and Execute</td>
+<td>Allows for viewing and listing files and subfolders as well as executing files. Files and folders inherit this permission.</td>
+</tr>
+<tr>
+<td>Write</td>
+<td>Allows for adding files to folders and subfolders and writing to a file.</td>
+</tr>
+<tr>
+<td>Read</td>
+<td>Allows for viewing and listing of folders and subfolders and viewing a file&#39;s contents.</td>
+</tr>
+<tr>
+<td>Traverse Folder</td>
+<td>This allows or denies the ability to move through folders to reach other files or folders. For example, a user may not have permission to list the directory contents or view files in the documents or web apps directory in this example c:\users\bsmith\documents\webapps\backups\backup_02042020.zip but with Traverse Folder permissions applied, they can access the backup archive.</td>
+</tr>
+</tbody>
+</table>
+<p>Files and folders inherit the NTFS permissions of their parent folder for ease of administration, so administrators do not need to explicitly set permissions for each file and folder, as this would be extremely time-consuming. If permissions do need to be set explicitly, an administrator can disable permissions inheritance for the necessary files and folders and then set the permissions directly on each.</p>
+<hr>
+<h3 id="integrity-control-access-control-list-icacls-">Integrity Control Access Control List (icacls)</h3>
+<p>NTFS permissions on files and folders in Windows can be managed using the File Explorer GUI under the security tab. Apart from the GUI, we can also achieve a fine level of granularity over NTFS file permissions in Windows from the command line using the icacls utility.</p>
+<p>We can list out the NTFS permissions on a specific directory by running either <code>icacls</code> from within the working directory or <code>icacls C:\Windows</code> against a directory not currently in.</p>
+<pre><code class="lang-cmd-session"><span class="hljs-string">C:</span>\htb&gt; icacls <span class="hljs-string">c:</span>\windows
+<span class="hljs-string">c:</span>\windows NT SERVICE\<span class="hljs-string">TrustedInstaller:</span>(F)
+           NT SERVICE\<span class="hljs-string">TrustedInstaller:</span>(CI)(IO)(F)
+           NT AUTHORITY\<span class="hljs-string">SYSTEM:</span>(M)
+           NT AUTHORITY\<span class="hljs-string">SYSTEM:</span>(OI)(CI)(IO)(F)
+           BUILTIN\<span class="hljs-string">Administrators:</span>(M)
+           BUILTIN\<span class="hljs-string">Administrators:</span>(OI)(CI)(IO)(F)
+           BUILTIN\<span class="hljs-string">Users:</span>(RX)
+           BUILTIN\<span class="hljs-string">Users:</span>(OI)(CI)(IO)(GR,GE)
+           CREATOR <span class="hljs-string">OWNER:</span>(OI)(CI)(IO)(F)
+           APPLICATION PACKAGE AUTHORITY\ALL APPLICATION <span class="hljs-string">PACKAGES:</span>(RX)
+           APPLICATION PACKAGE AUTHORITY\ALL APPLICATION <span class="hljs-string">PACKAGES:</span>(OI)(CI)(IO)(GR,GE)
+           APPLICATION PACKAGE AUTHORITY\ALL RESTRICTED APPLICATION <span class="hljs-string">PACKAGES:</span>(RX)
+           APPLICATION PACKAGE AUTHORITY\ALL RESTRICTED APPLICATION <span class="hljs-string">PACKAGES:</span>(OI)(CI)(IO)(GR,GE)
+
+Successfully processed <span class="hljs-number">1</span> files; Failed processing <span class="hljs-number">0</span> files
+</code></pre>
+<p>The resource access level is listed after each user in the output. The possible inheritance settings are:</p>
+<ul>
+<li><code>(CI)</code>: container inherit</li>
+<li><code>(OI)</code>: object inherit</li>
+<li><code>(IO)</code>: inherit only</li>
+<li><code>(NP)</code>: do not propagate inherit</li>
+<li><code>(I)</code>: permission inherited from parent container</li>
+</ul>
+<p>In the above example, the <code>NT AUTHORITY\SYSTEM</code> account has object inherit, container inherit, inherit only, and full access permissions. This means that this account has full control over all file system objects in this directory and subdirectories.</p>
+<p>Basic access permissions are as follows:</p>
+<ul>
+<li><code>F</code> : full access</li>
+<li><code>D</code> :  delete access</li>
+<li><code>N</code> :  no access</li>
+<li><code>M</code> :  modify access</li>
+<li><code>RX</code> :  read and execute access</li>
+<li><code>R</code> :  read-only access</li>
+<li><code>W</code> :  write-only access</li>
+</ul>
+<p>We can add and remove permissions via the command line using <code>icacls</code>. Here we are executing <code>icacls</code> in the context of a local administrator account showing the <code>C:\users</code> directory where the <code>joe</code> user does not have any write permissions.</p>
+<pre><code class="lang-cmd-session"><span class="hljs-attribute">C</span>:\htb&gt; icacls <span class="hljs-attribute">c</span>:\Users
+<span class="hljs-attribute">c</span>:\Users NT AUTHORITY\<span class="hljs-attribute">SYSTEM</span>:(OI)(CI)(F)
+         BUILTIN\<span class="hljs-attribute">Administrators</span>:(OI)(CI)(F)
+         BUILTIN\<span class="hljs-attribute">Users</span>:(RX)
+         BUILTIN\<span class="hljs-attribute">Users</span>:(OI)(CI)(IO)(GR,GE)
+         <span class="hljs-attribute">Everyone</span>:(RX)
+         <span class="hljs-attribute">Everyone</span>:(OI)(CI)(IO)(GR,GE)
+
+Successfully processed <span class="hljs-number">1</span> files; <span class="hljs-selector-tag">Failed</span> <span class="hljs-selector-tag">processing</span> <span class="hljs-selector-tag">0</span> <span class="hljs-selector-tag">files</span>
+</code></pre>
+<p>Using the command <code>icacls c:\users /grant joe:f</code> we can grant the joe user full control over the directory, but given that <code>(oi)</code> and <code>(ci)</code> were not included in the command, the joe user will only have rights over the <code>c:\users</code> folder but not over the user subdirectories and files contained within them.</p>
+<pre><code class="lang-cmd-session"><span class="hljs-string">C:</span>\htb&gt; icacls <span class="hljs-string">c:</span>\users /grant <span class="hljs-string">joe:</span>f
+processed <span class="hljs-string">file:</span> <span class="hljs-string">c:</span>\users
+Successfully processed <span class="hljs-number">1</span> files; Failed processing <span class="hljs-number">0</span> files
+</code></pre>
+<pre><code class="lang-cmd-session"><span class="hljs-attribute">C</span>:\htb&gt; &gt;icacls <span class="hljs-attribute">c</span>:\users
+<span class="hljs-attribute">c</span>:\users WS01\<span class="hljs-attribute">joe</span>:(F)
+         NT AUTHORITY\<span class="hljs-attribute">SYSTEM</span>:(OI)(CI)(F)
+         BUILTIN\<span class="hljs-attribute">Administrators</span>:(OI)(CI)(F)
+         BUILTIN\<span class="hljs-attribute">Users</span>:(RX)
+         BUILTIN\<span class="hljs-attribute">Users</span>:(OI)(CI)(IO)(GR,GE)
+         <span class="hljs-attribute">Everyone</span>:(RX)
+         <span class="hljs-attribute">Everyone</span>:(OI)(CI)(IO)(GR,GE)
+
+Successfully processed <span class="hljs-number">1</span> files; <span class="hljs-selector-tag">Failed</span> <span class="hljs-selector-tag">processing</span> <span class="hljs-selector-tag">0</span> <span class="hljs-selector-tag">files</span>
+</code></pre>
+<p>These permissions can be revoked using the command <code>icacls c:\users /remove joe</code>.</p>
+<p><code>icacls</code> is very powerful and can be used in a domain setting to give certain users or groups specific permissions over a file or folder, explicitly deny access, enable or disable inheritance permissions, and change directory/file ownership.</p>
+<p>A full listing of <code>icacls</code> command-line arguments and detailed permission settings can be found <a href="https://ss64.com/nt/icacls.html">here</a>.</p>
+<hr>
+<h2 id="ntfs-vs-share-permissions">NTFS vs. Share Permissions</h2>
+<hr>
+<p>Microsoft owns over <a href="https://gs.statcounter.com/os-market-share/desktop/worldwide/#monthly-201804-202104">70%</a> of the global market share on desktop operating systems with Windows. This explains why most malware authors choose to write malware for Windows and why many perceive Windows as less secure than other operating systems. From a business perspective it just makes sense for malware authors to expend resources on writing malware for Windows. It is a high-value target. The idea that any OS is immune to malware is a technical fallacy. If software can be written for an operating system then a virus can be written for an operating system. Keep in mind that a virus, by definition, is software written with malicious intent and can be written for any OS. Many variants of malware written for Windows can spread over the network via network shares with lenient permissions applied. It is also worth noting that to this day, the infamous <code>EternalBlue</code> vulnerability still haunts unpatched Windows systems running <code>SMBv1</code> and often paves the way for ransomware to shut down organizations.</p>
+<p>The <code>Server Message Block protocol</code> (<code>SMB</code>) is used in Windows to connect shared resources like files and printers. It is used in large, medium, and small enterprise environments. See the image below to visualize this concept:</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/49/smb_diagram.png" alt="Diagram of file sharing using SMB: A client sends an SMB request to a server, which responds. The server accesses file systems and printers, displaying a file directory."></p>
+<p>Note: Any time you see a visualization/diagram of a concept, take your time to understand it thoroughly. A picture can be worth a thousand words but very tempting to skip over when reading.</p>
+<p>NTFS permissions and share permissions are often understood to be the same. Please know that they are not the same but often apply to the same shared resource. Let’s take a look at the individual permissions that can be set to secure/grant objects access to a network share hosted on a Windows OS running the NTFS file system.</p>
+<p><strong>Share permissions</strong></p>
+<table>
+<thead>
+<tr>
+<th>Permission</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Full Control</code></td>
+<td>Users are permitted to perform all actions given by Change and Read permissions as well as change permissions for NTFS files and subfolders</td>
+</tr>
+<tr>
+<td><code>Change</code></td>
+<td>Users are permitted to read, edit, delete and add files and subfolders</td>
+</tr>
+<tr>
+<td><code>Read</code></td>
+<td>Users are allowed to view file &amp; subfolder contents</td>
+</tr>
+</tbody>
+</table>
+<p><strong>NTFS Basic permissions</strong></p>
+<table>
+<thead>
+<tr>
+<th>Permission</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Full Control</code></td>
+<td>Users are permitted to add, edit, move, delete files &amp; folders as well as change NTFS permissions that apply to all allowed folders</td>
+</tr>
+<tr>
+<td><code>Modify</code></td>
+<td>Users are permitted or denied permissions to view and modify files and folders. This includes adding or deleting files</td>
+</tr>
+<tr>
+<td><code>Read &amp; Execute</code></td>
+<td>Users are permitted or denied permissions to read the contents of files and execute programs</td>
+</tr>
+<tr>
+<td><code>List folder contents</code></td>
+<td>Users are permitted or denied permissions to view a listing of files and subfolders</td>
+</tr>
+<tr>
+<td><code>Read</code></td>
+<td>Users are permitted or denied permissions to read the contents of files</td>
+</tr>
+<tr>
+<td><code>Write</code></td>
+<td>Users are permitted or denied permissions to write changes to a file and add new files to a folder</td>
+</tr>
+<tr>
+<td><code>Special Permissions</code></td>
+<td>A variety of advanced permissions options</td>
+</tr>
+</tbody>
+</table>
+<p><strong>NTFS special permissions</strong></p>
+<table>
+<thead>
+<tr>
+<th>Permission</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Full control</code></td>
+<td>Users are permitted or denied permissions to add, edit, move, delete files &amp; folders as well as change NTFS permissions that apply to all permitted folders</td>
+</tr>
+<tr>
+<td><code>Traverse folder / execute file</code></td>
+<td>Users are permitted or denied permissions to access a subfolder within a directory structure even if the user is denied access to contents at the parent folder level. Users may also be permitted or denied permissions to execute programs</td>
+</tr>
+<tr>
+<td><code>List folder/read data</code></td>
+<td>Users are permitted or denied permissions to view files and folders contained in the parent folder. Users can also be permitted to open and view files</td>
+</tr>
+<tr>
+<td><code>Read attributes</code></td>
+<td>Users are permitted or denied permissions to view basic attributes of a file or folder. Examples of basic attributes: system, archive, read-only, and hidden</td>
+</tr>
+<tr>
+<td><code>Read extended attributes</code></td>
+<td>Users are permitted or denied permissions to view extended attributes of a file or folder. Attributes differ depending on the program</td>
+</tr>
+<tr>
+<td><code>Create files/write data</code></td>
+<td>Users are permitted or denied permissions to create files within a folder and make changes to a file</td>
+</tr>
+<tr>
+<td><code>Create folders/append data</code></td>
+<td>Users are permitted or denied permissions to create subfolders within a folder. Data can be added to files but pre-existing content cannot be overwritten</td>
+</tr>
+<tr>
+<td><code>Write attributes</code></td>
+<td>Users are permitted or denied to change file attributes. This permission does not grant access to creating files or folders</td>
+</tr>
+<tr>
+<td><code>Write extended attributes</code></td>
+<td>Users are permitted or denied permissions to change extended attributes on a file or folder. Attributes differ depending on the program</td>
+</tr>
+<tr>
+<td><code>Delete subfolders and files</code></td>
+<td>Users are permitted or denied permissions to delete subfolders and files. Parent folders will not be deleted</td>
+</tr>
+<tr>
+<td><code>Delete</code></td>
+<td>Users are permitted or denied permissions to delete parent folders, subfolders and files.</td>
+</tr>
+<tr>
+<td><code>Read permissions</code></td>
+<td>Users are permitted or denied permissions to read permissions of a folder</td>
+</tr>
+<tr>
+<td><code>Change permissions</code></td>
+<td>Users are permitted or denied permissions to change permissions of a file or folder</td>
+</tr>
+<tr>
+<td><code>Take ownership</code></td>
+<td>Users are permitted or denied permission to take ownership of a file or folder. The owner of a file has full permissions to change any permissions</td>
+</tr>
+</tbody>
+</table>
+<p>Keep in mind that NTFS permissions apply to the system where the folder and files are hosted. Folders created in NTFS inherit permissions from parent folders by default. It is possible to disable inheritance to set custom permissions on parent and subfolders, as we will do later in this module. The share permissions apply when the folder is being accessed through SMB, typically from a different system over the network. This means someone logged in locally to the machine or via RDP can access the shared folder and files by simply navigating to the location on the file system and only need to consider NTFS permissions. The permissions at the NTFS level provide administrators much more granular control over what users can do within a folder or file.</p>
+<hr>
+<h3 id="creating-a-network-share">Creating a Network Share</h3>
+<p>To get a solid fundamental understanding of SMB and it&#39;s relationship to NTFS, we will create a network share on the <code>Windows 10 target box</code>.</p>
+<p>Note: It is an ideal learning experience to have the Pwnbox open full screen on a separate monitor so we may have at least one display dedicated to displaying the written content and one display for the boxes we are interacting with. Alternatively, if we only have access to one display, we can use that one for interactions with boxes and a smartphone or tablet to reference the written content.</p>
+<p>In this case, we will create a shared folder by first creating a new folder on the Windows 10 desktop. Keep in mind that in most large enterprise environments, shares are created on a Storage Area Network (SAN), Network Attached Storage device (NAS), or a separate partition on drives accessed via a server operating system like Windows Server. If we ever come across shares on a desktop operating system, it will either be a small business or it could be a beachhead system used by a penetration tester or malicious attacker to gather and exfiltrate data.</p>
+<p>We will go through this process using the GUI in Windows.</p>
+<p><strong>Creating the Folder</strong></p>
+<p><img src="https://academy.hackthebox.com/storage/modules/49/creating_directory.png" alt="Windows desktop with a context menu open, showing options for creating new folders, shortcuts, and documents."></p>
+<p>We are going to use the <code>Advanced Sharing</code> option to configure our share.</p>
+<p><strong>Making the Folder a Share</strong></p>
+<p><img src="https://academy.hackthebox.com/storage/modules/49/configuring_share.png" alt="Windows desktop showing &#39;Company Data Properties&#39; with advanced sharing settings, including share name, user limit, and comments."></p>
+<p>Notice how the share name automatically defaults to the name of the folder. Also, we can see that it is possible to limit the number of users that can be connected to this share simultaneously. In a real-world environment it is a good practice for administrators to set this number according to the number of users that regularly need access to the resource being shared.</p>
+<p>Similar to NTFS permissions, there is an <code>access control list</code> (<code>ACL</code>) for shared resources. We can consider this the SMB permissions list. Keep in mind that with shared resources, both the SMB and NTFS permissions lists apply to every resource that gets shared in Windows. The ACL contains <code>access control entries</code> (<code>ACEs</code>). Typically these ACEs are made up of <code>users</code> &amp; <code>groups</code> (also called security principals) as they are a suitable mechanism for managing and tracking access to shared resources.</p>
+<p>Notice the default access control entry and permissions settings.</p>
+<p><strong>Share Permissions ACL (Sharing Tab)</strong></p>
+<p><img src="https://academy.hackthebox.com/storage/modules/49/share_permissions.png" alt="Permissions window for &#39;Company Data&#39; showing &#39;Everyone&#39; group with read permission allowed."></p>
+<p>For now, we are going to apply these settings to test the effect of this ACL and the permissions applied as-is. We will test connectivity from the Pwnbox by opening terminal and using <code>smbclient</code>.</p>
+<p>Note: A server is technically a software function used to service the requests of a client. In this case, the Pwnbox is our client, and the Windows 10 target box is our server.</p>
+<p><strong>Using smbclient to list available shares</strong></p>
+<pre><code class="lang-shell-session">[!bash!]$ smbclient -L SERVER_IP -U htb-student
+Enter WORKGROUP\htb-student's password: 
+
+    Sharename       Type      <span class="hljs-keyword">Comment</span>
+    <span class="hljs-comment">---------       ----      -------</span>
+    <span class="hljs-keyword">ADMIN</span>$          Disk      Remote <span class="hljs-keyword">Admin</span>
+    C$              Disk      <span class="hljs-keyword">Default</span> <span class="hljs-keyword">share</span>
+    Company <span class="hljs-keyword">Data</span>    Disk      
+    IPC$            IPC       Remote IPC
+</code></pre>
+<p><strong>Connecting to the Company Data share</strong></p>
+<pre><code class="lang-shell-session">[!bash!]$ smbclient <span class="hljs-string">'\\SERVER_IP\Company Data'</span> -U htb-student
+Password <span class="hljs-keyword">for</span> [WORKGROUP\htb-student]:
+Try <span class="hljs-string">"help"</span> <span class="hljs-keyword">to</span> <span class="hljs-built_in">get</span> <span class="hljs-keyword">a</span> <span class="hljs-keyword">list</span> of possible commands.
+
+<span class="hljs-keyword">sm</span><span class="hljs-variable">b:</span> \&gt;
+</code></pre>
+<p>What could potentially block us from accessing this share if all our entries are correct and our permissions list has the Everyone group present with at least Read permissions?</p>
+<hr>
+<h3 id="windows-defender-firewall-considerations">Windows Defender Firewall Considerations</h3>
+<p>It is the Windows Defender Firewall that could potentially be blocking access to the SMB share. Since we are connecting from a Linux-based system the firewall has blocked access from any device that is not joined to the same <code>workgroup</code>. It is also important to note that when a Windows system is part of a workgroup, all <code>netlogon</code> requests are authenticated against that particular Windows system&#39;s <code>SAM</code> database. When a Windows system is joined to a Windows Domain environment, all netlogon requests are authenticated against <code>Active Directory</code>. The primary difference between a workgroup and a Windows Domain in terms of authentication, is with a workgroup the local SAM database is used and in a Windows Domain a centralized network-based database (Active Directory) is used. We must know this information when attempting to logon &amp; authenticate with a Windows system. Consider where the htb-student account is hosted to properly connect to the target.</p>
+<p>In terms of the firewall blocking connections, this can be tested by completely deactivating each firewall profile in Windows or by enabling specific predefined inbound firewall rules in the <code>Windows Defender Firewall advanced security settings</code>. Like most firewalls, Windows Defender Firewall permits or denies traffic (access &amp; connection requests in this case) flowing <code>inbound</code> &amp;/or <code>outbound</code></p>
+<p>The different inbound and outbound rules are associated with the different firewall profiles in defender.</p>
+<p>Windows Defender Firewall Profiles:</p>
+<ul>
+<li><code>Public</code></li>
+<li><code>Private</code></li>
+<li><code>Domain</code></li>
+</ul>
+<p>It is a best practice to enable predefined rules or add custom exceptions rather than deactivating the firewall altogether. Unfortunately, it is very common for firewalls to be left completely deactivated for the sake of convenience or lack of understanding. Firewall rules on desktop systems can be centrally managed when joined to a Windows Domain environment through the use of Group Policy. Group Policy concepts and configurations are outside of the scope of this module.</p>
+<p>Once the proper <code>inbound</code> firewall rules are enabled we will successfully connect to the share. Keep in mind that we can only connect to the share because the user account we are using (<code>htb-student</code>) is in the <code>Everyone group</code>. Recall that we left the specific share permissions for the Everyone group set to Read, which quite literally means we will only be able to Read files on this share. Once a connection is established with a share, we can create a <code>mount point</code> from our Pwnbox to the Windows 10 target box&#39;s file system. This is where we must also consider that NTFS permissions apply alongside share permissions. Recall that NTFS is the default file system in Windows. Lets jump back to our xfreerdp session with our Windows 10 target box and take a look at the NTFS permissions on the Company Data folder.</p>
+<p><strong>NTFS Permissions ACL (Security Tab)</strong></p>
+<p><img src="https://academy.hackthebox.com/storage/modules/49/ntfs.png" alt="Company Data Properties window showing security permissions for SYSTEM, htb-student, and Administrators, with full control allowed for htb-student."></p>
+<p>There&#39;s more granular control with NTFS permissions that can be applied to users and groups. Anytime we see a gray checkmark next to a permission, it was inherited from a parent directory. By default, all NTFS permissions are inherited from the parent directory. In the Windows world, the <code>C:\ drive</code> is the parent directory to rule all directories unless a system administrator were to disable inheritance inside a newly created folder’s advanced Security settings.</p>
+<p>In many cases, the system administrator(s) of an organization would be responsible for deciding what permissions a user or group of users gets over network resources. This is why many spear-phishing attacks are directed at system administrators and other IT leaders. They have lots of influence over what is allowed in the environments they oversee, even more so than an organization&#39;s non-technical c-level leaders in many cases. For example, the doctors or executives working in a hospital will not have administrative rights over the network, but the system administrators will.</p>
+<p>Now lets give the Everyone group <code>Full control</code> at the share level and test the impact of the change by trying to create a mount point to the share from the Desktop of our Pwnbox</p>
+<p><strong>Mounting to the Share</strong></p>
+<pre><code class="lang-shell-session">[!bash!]<span class="hljs-variable">$ </span>sudo mount -t cifs -o username=htb-student,password=Academy_WinFun! <span class="hljs-regexp">//ipaddoftarget</span><span class="hljs-regexp">/"Company Data" /home</span><span class="hljs-regexp">/user/</span>Desktop/
+</code></pre>
+<p>If this command is not working check the syntax. If the syntax is correct yet the command is still not working, <code>cifs-utils</code> may need to be installed. This can be done with the following command:</p>
+<p><strong>Installing CIFS Utilities</strong></p>
+<pre><code class="lang-shell-session">[!<span class="hljs-keyword">bash!]$ </span>sudo apt-<span class="hljs-meta">get</span> install cifs-utils
+</code></pre>
+<p>Once we have successfully created the mount point on the Desktop on our Pwnbox, we should look at a couple of tools built-in to Windows that will allow us to track and monitor what we have done.</p>
+<p>The <code>net share</code> command allows us to view all the shared folders on the system. Notice the share we created and also the C:\ drive.</p>
+<p><code>Do you remember us sharing the C:\ drive?</code></p>
+<p>We didn&#39;t manually share C:. The most important drive with the most critical files on a Windows system is shared via SMB at install. This means anyone with the proper access could remotely access the entire C:\ of each Windows system on a network.</p>
+<p>We can also see the share we created.</p>
+<p><strong>Displaying Shares using net share</strong></p>
+<pre><code class="lang-cmd-session">C:<span class="hljs-symbol">\U</span>sers<span class="hljs-symbol">\h</span>tb-student&gt; net share
+
+Share name   Resource                        Remark
+
+-------------------------------------------------------------------------------
+C$           C:<span class="hljs-symbol">\ </span>                            Default share
+IPC$                                         Remote IPC
+ADMIN$       C:<span class="hljs-symbol">\W</span>INDOWS                      Remote Admin
+Company Data C:<span class="hljs-symbol">\U</span>sers<span class="hljs-symbol">\h</span>tb-student<span class="hljs-symbol">\D</span>esktop<span class="hljs-symbol">\C</span>ompany Data
+
+The command completed successfully.
+</code></pre>
+<p><code>Computer Management</code> is another tool we can use to identify and monitor shared resources on a Windows system.</p>
+<p><strong>Monitoring Shares from Computer Management</strong></p>
+<p><img src="https://academy.hackthebox.com/storage/modules/49/computer_management.png" alt="Computer Management window showing shared folders, including &#39;Company Data&#39;, with context menu options like expand, manage, and properties."></p>
+<p>We can poke around in <code>Shares</code>, <code>Sessions</code>, and <code>Open Files</code> to get an idea of what information this provides us. Should there be a situation where we assist an individual or organization with responding to a breach related to SMB, these are some great places to check and start to understand how the breach may have happened and what may have been left behind.</p>
+<p><strong>Viewing Share access logs in Event Viewer</strong></p>
+<p><code>Event Viewer</code> is another good place to investigate actions completed on Windows. Almost every operating system has a logging mechanism and a utility to view the logs that were captured. Know that a log is like a journal entry for a computer, where the computer writes down all the actions that were performed and numerous details associated with that action. We can view the logs created for every action we performed when accessing the Windows 10 target box, as well as when creating, editing and accessing the shared folder.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/49/event_viewer.png" alt="Event Viewer showing security logs with multiple &#39;Audit Success&#39; entries, highlighting Event ID 5059 for Microsoft Windows security auditing."></p>
+<hr>
+<p>\
+-----</p>
+<h2 id="windows-services-processes">Windows Services &amp; Processes</h2>
+<hr>
+<h3 id="windows-services">Windows Services</h3>
+<p>Services are a major component of the Windows operating system. They allow for the creation and management of long-running processes. Windows services can be started automatically at system boot without user intervention. These services can continue to run in the background even after the user logs out of their account on the system.</p>
+<p>Applications can also be created to install as a service, such as a network monitoring application installed on a server. Services on Windows are responsible for many functions within the Windows operating system, such as networking functions, performing system diagnostics, managing user credentials, controlling Windows updates, and more.</p>
+<p>Windows services are managed via the Service Control Manager (SCM) system, accessible via the <code>services.msc</code> MMC add-in.</p>
+<p>This add-in provides a GUI interface for interacting with and managing services and displays information about each installed service. This information includes the service Name, Description, Status, Startup Type, and the user that the service runs under.</p>
+<p>It is also possible to query and manage services via the command line using <code>sc.exe</code> using <a href="https://docs.microsoft.com/en-us/powershell/scripting/overview?view=powershell-7">PowerShell</a> cmdlets such as <code>Get-Service</code>.</p>
+<pre><code class="lang-powershell-session">PS C:\htb&gt; Get-Service | ? {$_.Status -eq <span class="hljs-string">"Running"</span>} | <span class="hljs-keyword">select</span> -First <span class="hljs-number">2</span> |fl
+
+
+Name                : <span class="hljs-type">AdobeARMservice</span>
+DisplayName         : <span class="hljs-type">Adobe</span> Acrobat Update Service
+Status              : <span class="hljs-type">Running</span>
+DependentServices   : {}
+ServicesDependedOn  : {}
+CanPauseAndContinue : <span class="hljs-type">False</span>
+CanShutdown         : <span class="hljs-type">False</span>
+CanStop             : <span class="hljs-type">True</span>
+ServiceType         : <span class="hljs-type">Win32OwnProcess</span>
+
+Name                : <span class="hljs-type">Appinfo</span>
+DisplayName         : <span class="hljs-type">Application</span> Information
+Status              : <span class="hljs-type">Running</span>
+DependentServices   : {}
+ServicesDependedOn  : {<span class="hljs-type">RpcSs</span>, ProfSvc}
+CanPauseAndContinue : <span class="hljs-type">False</span>
+CanShutdown         : <span class="hljs-type">False</span>
+CanStop             : <span class="hljs-type">True</span>
+ServiceType         : <span class="hljs-type">Win32OwnProcess</span>, Win32ShareProcess
+</code></pre>
+<p>Service statuses can appear as Running, Stopped, or Paused, and they can be set to start manually, automatically, or on a delay at system boot. Services can also be shown in the state of Starting or Stopping if some action has triggered them to either start or stop. Windows has three categories of services: Local Services, Network Services, and System Services. Services can usually only be created, modified, and deleted by users with administrative privileges. Misconfigurations around service permissions are a common privilege escalation vector on Windows systems.</p>
+<p>In Windows, we have some <a href="https://docs.microsoft.com/en-us/windows/win32/rstmgr/critical-system-services">critical system services</a> that cannot be stopped and restarted without a system restart. If we update any file or resource in use by one of these services, we must restart the system.</p>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>smss.exe</td>
+<td>Session Manager SubSystem. Responsible for handling sessions on the system.</td>
+</tr>
+<tr>
+<td>csrss.exe</td>
+<td>Client Server Runtime Process. The user-mode portion of the Windows subsystem.</td>
+</tr>
+<tr>
+<td>wininit.exe</td>
+<td>Starts the Wininit file .ini file that lists all of the changes to be made to Windows when the computer is restarted after installing a program.</td>
+</tr>
+<tr>
+<td>logonui.exe</td>
+<td>Used for facilitating user login into a PC</td>
+</tr>
+<tr>
+<td>lsass.exe</td>
+<td>The Local Security Authentication Server verifies the validity of user logons to a PC or server. It generates the process responsible for authenticating users for the Winlogon service.</td>
+</tr>
+<tr>
+<td>services.exe</td>
+<td>Manages the operation of starting and stopping services.</td>
+</tr>
+<tr>
+<td>winlogon.exe</td>
+<td>Responsible for handling the secure attention sequence, loading a user profile on logon, and locking the computer when a screensaver is running.</td>
+</tr>
+<tr>
+<td>System</td>
+<td>A background system process that runs the Windows kernel.</td>
+</tr>
+<tr>
+<td>svchost.exe with RPCSS</td>
+<td>Manages system services that run from dynamic-link libraries (files with the extension .dll) such as &quot;Automatic Updates,&quot; &quot;Windows Firewall,&quot; and &quot;Plug and Play.&quot; Uses the Remote Procedure Call (RPC) Service (RPCSS).</td>
+</tr>
+<tr>
+<td>svchost.exe with Dcom/PnP</td>
+<td>Manages system services that run from dynamic-link libraries (files with the extension .dll) such as &quot;Automatic Updates,&quot; &quot;Windows Firewall,&quot; and &quot;Plug and Play.&quot; Uses the Distributed Component Object Model (DCOM) and Plug and Play (PnP) services.</td>
+</tr>
+</tbody>
+</table>
+<p>This <a href="https://en.wikipedia.org/wiki/List_of_Microsoft_Windows_components#Services">link</a> has a list of Windows components, including key services.</p>
+<hr>
+<h3 id="processes">Processes</h3>
+<p>Processes run in the background on Windows systems. They either run automatically as part of the Windows operating system or are started by other installed applications.</p>
+<p>Processes associated with installed applications can often be terminated without causing a severe impact on the operating system. Certain processes are critical and, if terminated, will stop certain components of the operating system from running properly. Some examples include the Windows Logon Application, System, System Idle Process, Windows Start-Up Application, Client Server Runtime, Windows Session Manager, Service Host, and Local Security Authority Subsystem Service (LSASS) process.</p>
+<hr>
+<h3 id="local-security-authority-subsystem-service-lsass-">Local Security Authority Subsystem Service (LSASS)</h3>
+<p><code>lsass.exe</code> is the process that is responsible for enforcing the security policy on Windows systems. When a user attempts to log on to the system, this process verifies their log on attempt and creates access tokens based on the user&#39;s permission levels. LSASS is also responsible for user account password changes. All events associated with this process (logon/logoff attempts, etc.) are logged within the Windows Security Log. LSASS is an extremely high-value target as several tools exist to extract both cleartext and hashed credentials stored in memory by this process.</p>
+<hr>
+<h3 id="sysinternals-tools">Sysinternals Tools</h3>
+<p>The <a href="https://docs.microsoft.com/en-us/sysinternals">SysInternals Tools suite</a> is a set of portable Windows applications that can be used to administer Windows systems (for the most part without requiring installation). The tools can be either downloaded from the Microsoft website or by loading them directly from an internet-accessible file share by typing <code>\\live.sysinternals.com\tools</code> into a Windows Explorer window.</p>
+<p>For example, we can run procdump.exe directly from this share without downloading it directly to disk.</p>
+<pre><code class="lang-cmd-session"><span class="hljs-symbol">C</span>:\htb&gt; \\live.sysinternals.com\tools\procdump.exe -accepteula
+
+<span class="hljs-symbol">ProcDump</span> v9<span class="hljs-number">.0</span> - <span class="hljs-symbol">Sysinternals</span> process dump utility
+<span class="hljs-symbol">Copyright</span> (<span class="hljs-symbol">C</span>) <span class="hljs-number">2009</span><span class="hljs-number">-2017</span> <span class="hljs-symbol">Mark</span> <span class="hljs-symbol">Russinovich</span> and <span class="hljs-symbol">Andrew</span> <span class="hljs-symbol">Richards</span>
+<span class="hljs-symbol">Sysinternals</span> - www.sysinternals.com
+
+<span class="hljs-symbol">Monitors</span> a process and writes a dump file when the process exceeds the
+specified criteria or has an exception.
+
+<span class="hljs-symbol">Capture</span> <span class="hljs-symbol">Usage</span>:
+   procdump.exe [-mm] [-ma] [-mp] [-mc <span class="hljs-symbol">Mask</span>] [-md <span class="hljs-symbol">Callback_DLL</span>] [-mk]
+                [-n <span class="hljs-symbol">Count</span>]
+                [-s <span class="hljs-symbol">Seconds</span>]
+                [-c|-cl <span class="hljs-symbol">CPU_Usage</span> [-u]]
+                [-m|-ml <span class="hljs-symbol">Commit_Usage</span>]
+                [-p|-pl <span class="hljs-symbol">Counter_Threshold</span>]
+                [-h]
+                [-e [<span class="hljs-number">1</span> [-g] [-b]]]
+                [-l]
+                [-t]
+                [-f  <span class="hljs-symbol">Include_Filter</span>, ...]
+                [-fx <span class="hljs-symbol">Exclude_Filter</span>, ...]
+                [-o]
+                [-r [<span class="hljs-number">1.</span><span class="hljs-number">.5</span>] [-a]]
+                [-wer]
+                [<span class="hljs-number">-64</span>]
+                {
+                 {{[-w] <span class="hljs-symbol">Process_Name</span> | <span class="hljs-symbol">Service_Name</span> | <span class="hljs-symbol">PID</span>} [<span class="hljs-symbol">Dump_File</span> | <span class="hljs-symbol">Dump_Folder</span>]}
+                |
+                 {-x <span class="hljs-symbol">Dump_Folder</span> <span class="hljs-symbol">Image_File</span> [<span class="hljs-symbol">Argument</span>, ...]}
+                }
+
+&lt;<span class="hljs-symbol">SNIP</span>&gt;
+</code></pre>
+<p>The suite includes tools such as <code>Process Explorer</code>, an enhanced version of <code>Task Manager</code>, and <code>Process Monitor</code>, which can be used to monitor file system, registry, and network activity related to any process running on the system. Some additional tools are TCPView, which is used to monitor internet activity, and PSExec, which can be used to manage/connect to systems via the SMB protocol remotely.</p>
+<p>These tools can be useful for penetration testers to, for example, discover interesting processes and possible privilege escalation paths as well as for lateral movement.</p>
+<hr>
+<h3 id="task-manager">Task Manager</h3>
+<p>Windows Task Manager is a powerful tool for managing Windows systems. It provides information about running processes, system performance, running services, startup programs, logged-in users/logged in user processes, and services. Task Manager can be opened by right-clicking on the taskbar and selecting <code>Task Manager</code>, pressing ctrl + shift + Esc, pressing ctrl + alt + del and selecting <code>Task Manager</code>, opening the start menu and typing <code>Task Manager</code>, or typing <code>taskmgr</code> from a CMD or PowerShell console.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/49/taskmgr.png" alt="Task Manager showing processes with CPU, memory, disk, and network usage, highlighting Google Chrome and Windows PowerShell."></p>
+<table>
+<thead>
+<tr>
+<th>Tab</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Processes tab</td>
+<td>Shows a list of running applications and background processes along with the CPU, memory, disk, network, and power usage for each.</td>
+</tr>
+<tr>
+<td>Performance tab</td>
+<td>Shows graphs and data such as CPU utilization, system uptime, memory usage, disk and, networking, and GPU usage. We can also open the <code>Resource Monitor</code>, which gives us a much more in-depth view of the current CPU, Memory, Disk, and Network resource usage.</td>
+</tr>
+</tbody>
+</table>
+<p><img src="https://academy.hackthebox.com/storage/modules/49/resource_monitor.png" alt="Resource Monitor displaying processes with memory usage details and physical memory graph."></p>
+<table>
+<thead>
+<tr>
+<th>Tab</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>App history tab</td>
+<td>Shows resource usage for the current user account for each application for a period of time.</td>
+</tr>
+<tr>
+<td>Startup tab</td>
+<td>Shows which applications are configured to start at boot as well as the impact on the startup process.</td>
+</tr>
+<tr>
+<td>Users tab</td>
+<td>Shows logged in users and the processes/resource usage associated with their session.</td>
+</tr>
+<tr>
+<td>Details tab</td>
+<td>Shows the name, process ID (PID), status, associated username, CPU, and memory usage for each running application.</td>
+</tr>
+<tr>
+<td>Services tab</td>
+<td>Shows the name, PID, description, and status of each installed service. The Services add-in can be accessed from this tab as well.</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h3 id="process-explorer">Process Explorer</h3>
+<p><a href="https://docs.microsoft.com/en-us/sysinternals/downloads/process-explorer">Process Explorer</a> is a part of the Sysinternals tool suite. This tool can show which handles and DLL processes are loaded when a program runs. Process Explorer shows a list of currently running processes, and from there, we can see what handles the process has selected in one view or the DLLs and memory-swapped files that have been loaded in another view. We can also search within the tool to show which processes tie back to a specific handle or DLL. The tool can also be used to analyze parent-child process relationships to see what child processes are spawned by an application and help troubleshoot any issues such as orphaned processed that can be left behind when a process is terminated.</p>
+<hr>
+<h2 id="windows-services-processes">Windows Services &amp; Processes</h2>
+<hr>
+<h3 id="windows-services">Windows Services</h3>
+<p>Services are a major component of the Windows operating system. They allow for the creation and management of long-running processes. Windows services can be started automatically at system boot without user intervention. These services can continue to run in the background even after the user logs out of their account on the system.</p>
+<p>Applications can also be created to install as a service, such as a network monitoring application installed on a server. Services on Windows are responsible for many functions within the Windows operating system, such as networking functions, performing system diagnostics, managing user credentials, controlling Windows updates, and more.</p>
+<p>Windows services are managed via the Service Control Manager (SCM) system, accessible via the <code>services.msc</code> MMC add-in.</p>
+<p>This add-in provides a GUI interface for interacting with and managing services and displays information about each installed service. This information includes the service Name, Description, Status, Startup Type, and the user that the service runs under.</p>
+<p>It is also possible to query and manage services via the command line using <code>sc.exe</code> using <a href="https://docs.microsoft.com/en-us/powershell/scripting/overview?view=powershell-7">PowerShell</a> cmdlets such as <code>Get-Service</code>.</p>
+<pre><code class="lang-powershell-session">PS C:\htb&gt; Get-Service | ? {$_.Status -eq <span class="hljs-string">"Running"</span>} | <span class="hljs-keyword">select</span> -First <span class="hljs-number">2</span> |fl
+
+
+Name                : <span class="hljs-type">AdobeARMservice</span>
+DisplayName         : <span class="hljs-type">Adobe</span> Acrobat Update Service
+Status              : <span class="hljs-type">Running</span>
+DependentServices   : {}
+ServicesDependedOn  : {}
+CanPauseAndContinue : <span class="hljs-type">False</span>
+CanShutdown         : <span class="hljs-type">False</span>
+CanStop             : <span class="hljs-type">True</span>
+ServiceType         : <span class="hljs-type">Win32OwnProcess</span>
+
+Name                : <span class="hljs-type">Appinfo</span>
+DisplayName         : <span class="hljs-type">Application</span> Information
+Status              : <span class="hljs-type">Running</span>
+DependentServices   : {}
+ServicesDependedOn  : {<span class="hljs-type">RpcSs</span>, ProfSvc}
+CanPauseAndContinue : <span class="hljs-type">False</span>
+CanShutdown         : <span class="hljs-type">False</span>
+CanStop             : <span class="hljs-type">True</span>
+ServiceType         : <span class="hljs-type">Win32OwnProcess</span>, Win32ShareProcess
+</code></pre>
+<p>Service statuses can appear as Running, Stopped, or Paused, and they can be set to start manually, automatically, or on a delay at system boot. Services can also be shown in the state of Starting or Stopping if some action has triggered them to either start or stop. Windows has three categories of services: Local Services, Network Services, and System Services. Services can usually only be created, modified, and deleted by users with administrative privileges. Misconfigurations around service permissions are a common privilege escalation vector on Windows systems.</p>
+<p>In Windows, we have some <a href="https://docs.microsoft.com/en-us/windows/win32/rstmgr/critical-system-services">critical system services</a> that cannot be stopped and restarted without a system restart. If we update any file or resource in use by one of these services, we must restart the system.</p>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>smss.exe</td>
+<td>Session Manager SubSystem. Responsible for handling sessions on the system.</td>
+</tr>
+<tr>
+<td>csrss.exe</td>
+<td>Client Server Runtime Process. The user-mode portion of the Windows subsystem.</td>
+</tr>
+<tr>
+<td>wininit.exe</td>
+<td>Starts the Wininit file .ini file that lists all of the changes to be made to Windows when the computer is restarted after installing a program.</td>
+</tr>
+<tr>
+<td>logonui.exe</td>
+<td>Used for facilitating user login into a PC</td>
+</tr>
+<tr>
+<td>lsass.exe</td>
+<td>The Local Security Authentication Server verifies the validity of user logons to a PC or server. It generates the process responsible for authenticating users for the Winlogon service.</td>
+</tr>
+<tr>
+<td>services.exe</td>
+<td>Manages the operation of starting and stopping services.</td>
+</tr>
+<tr>
+<td>winlogon.exe</td>
+<td>Responsible for handling the secure attention sequence, loading a user profile on logon, and locking the computer when a screensaver is running.</td>
+</tr>
+<tr>
+<td>System</td>
+<td>A background system process that runs the Windows kernel.</td>
+</tr>
+<tr>
+<td>svchost.exe with RPCSS</td>
+<td>Manages system services that run from dynamic-link libraries (files with the extension .dll) such as &quot;Automatic Updates,&quot; &quot;Windows Firewall,&quot; and &quot;Plug and Play.&quot; Uses the Remote Procedure Call (RPC) Service (RPCSS).</td>
+</tr>
+<tr>
+<td>svchost.exe with Dcom/PnP</td>
+<td>Manages system services that run from dynamic-link libraries (files with the extension .dll) such as &quot;Automatic Updates,&quot; &quot;Windows Firewall,&quot; and &quot;Plug and Play.&quot; Uses the Distributed Component Object Model (DCOM) and Plug and Play (PnP) services.</td>
+</tr>
+</tbody>
+</table>
+<p>This <a href="https://en.wikipedia.org/wiki/List_of_Microsoft_Windows_components#Services">link</a> has a list of Windows components, including key services.</p>
+<hr>
+<h3 id="processes">Processes</h3>
+<p>Processes run in the background on Windows systems. They either run automatically as part of the Windows operating system or are started by other installed applications.</p>
+<p>Processes associated with installed applications can often be terminated without causing a severe impact on the operating system. Certain processes are critical and, if terminated, will stop certain components of the operating system from running properly. Some examples include the Windows Logon Application, System, System Idle Process, Windows Start-Up Application, Client Server Runtime, Windows Session Manager, Service Host, and Local Security Authority Subsystem Service (LSASS) process.</p>
+<hr>
+<h3 id="local-security-authority-subsystem-service-lsass-">Local Security Authority Subsystem Service (LSASS)</h3>
+<p><code>lsass.exe</code> is the process that is responsible for enforcing the security policy on Windows systems. When a user attempts to log on to the system, this process verifies their log on attempt and creates access tokens based on the user&#39;s permission levels. LSASS is also responsible for user account password changes. All events associated with this process (logon/logoff attempts, etc.) are logged within the Windows Security Log. LSASS is an extremely high-value target as several tools exist to extract both cleartext and hashed credentials stored in memory by this process.</p>
+<hr>
+<h3 id="sysinternals-tools">Sysinternals Tools</h3>
+<p>The <a href="https://docs.microsoft.com/en-us/sysinternals">SysInternals Tools suite</a> is a set of portable Windows applications that can be used to administer Windows systems (for the most part without requiring installation). The tools can be either downloaded from the Microsoft website or by loading them directly from an internet-accessible file share by typing <code>\\live.sysinternals.com\tools</code> into a Windows Explorer window.</p>
+<p>For example, we can run procdump.exe directly from this share without downloading it directly to disk.</p>
+<pre><code class="lang-cmd-session"><span class="hljs-symbol">C</span>:\htb&gt; \\live.sysinternals.com\tools\procdump.exe -accepteula
+
+<span class="hljs-symbol">ProcDump</span> v9<span class="hljs-number">.0</span> - <span class="hljs-symbol">Sysinternals</span> process dump utility
+<span class="hljs-symbol">Copyright</span> (<span class="hljs-symbol">C</span>) <span class="hljs-number">2009</span><span class="hljs-number">-2017</span> <span class="hljs-symbol">Mark</span> <span class="hljs-symbol">Russinovich</span> and <span class="hljs-symbol">Andrew</span> <span class="hljs-symbol">Richards</span>
+<span class="hljs-symbol">Sysinternals</span> - www.sysinternals.com
+
+<span class="hljs-symbol">Monitors</span> a process and writes a dump file when the process exceeds the
+specified criteria or has an exception.
+
+<span class="hljs-symbol">Capture</span> <span class="hljs-symbol">Usage</span>:
+   procdump.exe [-mm] [-ma] [-mp] [-mc <span class="hljs-symbol">Mask</span>] [-md <span class="hljs-symbol">Callback_DLL</span>] [-mk]
+                [-n <span class="hljs-symbol">Count</span>]
+                [-s <span class="hljs-symbol">Seconds</span>]
+                [-c|-cl <span class="hljs-symbol">CPU_Usage</span> [-u]]
+                [-m|-ml <span class="hljs-symbol">Commit_Usage</span>]
+                [-p|-pl <span class="hljs-symbol">Counter_Threshold</span>]
+                [-h]
+                [-e [<span class="hljs-number">1</span> [-g] [-b]]]
+                [-l]
+                [-t]
+                [-f  <span class="hljs-symbol">Include_Filter</span>, ...]
+                [-fx <span class="hljs-symbol">Exclude_Filter</span>, ...]
+                [-o]
+                [-r [<span class="hljs-number">1.</span><span class="hljs-number">.5</span>] [-a]]
+                [-wer]
+                [<span class="hljs-number">-64</span>]
+                {
+                 {{[-w] <span class="hljs-symbol">Process_Name</span> | <span class="hljs-symbol">Service_Name</span> | <span class="hljs-symbol">PID</span>} [<span class="hljs-symbol">Dump_File</span> | <span class="hljs-symbol">Dump_Folder</span>]}
+                |
+                 {-x <span class="hljs-symbol">Dump_Folder</span> <span class="hljs-symbol">Image_File</span> [<span class="hljs-symbol">Argument</span>, ...]}
+                }
+
+&lt;<span class="hljs-symbol">SNIP</span>&gt;
+</code></pre>
+<p>The suite includes tools such as <code>Process Explorer</code>, an enhanced version of <code>Task Manager</code>, and <code>Process Monitor</code>, which can be used to monitor file system, registry, and network activity related to any process running on the system. Some additional tools are TCPView, which is used to monitor internet activity, and PSExec, which can be used to manage/connect to systems via the SMB protocol remotely.</p>
+<p>These tools can be useful for penetration testers to, for example, discover interesting processes and possible privilege escalation paths as well as for lateral movement.</p>
+<hr>
+<h3 id="task-manager">Task Manager</h3>
+<p>Windows Task Manager is a powerful tool for managing Windows systems. It provides information about running processes, system performance, running services, startup programs, logged-in users/logged in user processes, and services. Task Manager can be opened by right-clicking on the taskbar and selecting <code>Task Manager</code>, pressing ctrl + shift + Esc, pressing ctrl + alt + del and selecting <code>Task Manager</code>, opening the start menu and typing <code>Task Manager</code>, or typing <code>taskmgr</code> from a CMD or PowerShell console.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/49/taskmgr.png" alt="Task Manager showing processes with CPU, memory, disk, and network usage, highlighting Google Chrome and Windows PowerShell."></p>
+<table>
+<thead>
+<tr>
+<th>Tab</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Processes tab</td>
+<td>Shows a list of running applications and background processes along with the CPU, memory, disk, network, and power usage for each.</td>
+</tr>
+<tr>
+<td>Performance tab</td>
+<td>Shows graphs and data such as CPU utilization, system uptime, memory usage, disk and, networking, and GPU usage. We can also open the <code>Resource Monitor</code>, which gives us a much more in-depth view of the current CPU, Memory, Disk, and Network resource usage.</td>
+</tr>
+</tbody>
+</table>
+<p><img src="https://academy.hackthebox.com/storage/modules/49/resource_monitor.png" alt="Resource Monitor displaying processes with memory usage details and physical memory graph."></p>
+<table>
+<thead>
+<tr>
+<th>Tab</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>App history tab</td>
+<td>Shows resource usage for the current user account for each application for a period of time.</td>
+</tr>
+<tr>
+<td>Startup tab</td>
+<td>Shows which applications are configured to start at boot as well as the impact on the startup process.</td>
+</tr>
+<tr>
+<td>Users tab</td>
+<td>Shows logged in users and the processes/resource usage associated with their session.</td>
+</tr>
+<tr>
+<td>Details tab</td>
+<td>Shows the name, process ID (PID), status, associated username, CPU, and memory usage for each running application.</td>
+</tr>
+<tr>
+<td>Services tab</td>
+<td>Shows the name, PID, description, and status of each installed service. The Services add-in can be accessed from this tab as well.</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h3 id="process-explorer">Process Explorer</h3>
+<p><a href="https://docs.microsoft.com/en-us/sysinternals/downloads/process-explorer">Process Explorer</a> is a part of the Sysinternals tool suite. This tool can show which handles and DLL processes are loaded when a program runs. Process Explorer shows a list of currently running processes, and from there, we can see what handles the process has selected in one view or the DLLs and memory-swapped files that have been loaded in another view. We can also search within the tool to show which processes tie back to a specific handle or DLL. The tool can also be used to analyze parent-child process relationships to see what child processes are spawned by an application and help troubleshoot any issues such as orphaned processed that can be left behind when a process is terminated.</p>
+<hr>
+<h2 id="service-permissions">Service Permissions</h2>
+<hr>
+<p>Recall that services allow for the management of long-running processes and are a critical part of Windows operating systems. Sysadmins often overlook them as potential threat vectors that can be used to load malicious DLLs, execute applications without access to an admin account, escalate privileges and even maintain persistence. These threat vectors in Windows services often come into existence through service permissions misconfigurations put in place by 3rd party software and easy to make mistakes by admins during install processes.</p>
+<p>The first step in realizing the importance of service permissions is simply understanding that they exist and being mindful of them. On server operating systems, critical network services like DHCP and Active Directory Domain Services commonly get installed using the account assigned to the admin performing the install. Part of the install process includes assigning a specific service to run using the credentials and privileges of a designated user, which by default is set within the currently logged-on user context.</p>
+<p>For example, if we are logged on as Bob on a server during DHCP install, then that service will be configured to run as Bob unless specified otherwise. What bad things could come of this? Well, what if Bob leaves the organization or gets fired? The typical business practice would be to disable Bob’s account as part of his exit process. In this case, what would happen to DHCP and other services running using Bob’s account? Those services would fail to start. DHCP or Dynamic Host Configuration Protocol is responsible for leasing IP addresses to computers on the network. If this service stops on a Windows DHCP server, clients requesting an IP address will not receive one. This means a service misconfiguration could lead to downtime and loss of productivity. It is highly recommended to create an individual user account to run critical network services. These are referred to as service accounts.</p>
+<p>We should also be mindful of service permissions and the permissions of the directories they execute from because it is possible to replace the path to an executable with a malicious DLL or executable file. Let&#39;s examine the permissions of services running on Windows 10 to get an even better understanding of this.</p>
+<hr>
+<h3 id="examining-services-using-services-msc">Examining Services using services.msc</h3>
+<p>As discussed in the processes and services section, we can use <code>services.msc</code> to view and manage just about every detail regarding all services. Let&#39;s take a closer look at the service associated with <code>Windows Update</code> (<code>wuauserv</code>).</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/49/service_properties.png" alt="Services window showing Windows Update properties with service name, description, and status running."></p>
+<p>Make a note of the different properties available for viewing and configuration. Knowing the service name is especially useful when using command-line tools to examine and manage services. Path to the executable is the full path to the program and command to execute when the service starts. If the NTFS permissions of the destination directory are configured with weak permissions, an attacker could replace the original executable with one created for malicious purposes. We discuss NTFS permissions more in the NTFS vs. Share permissions section of this module.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/49/logon.png" alt="Services window showing Windows Update properties with log on options for Local System account and specific user account."></p>
+<p>Most services run with LocalSystem privileges by default which is the highest level of access allowed on an individual Windows OS. Not all applications need Local System account-level permissions, so it is beneficial to perform research on a case-by-case basis when considering installing new applications in a Windows environment. It is a good practice to identify applications that can run with the least privileges possible to align with the principle of least privilege.</p>
+<p><a href="https://www.cloudflare.com/learning/access-management/principle-of-least-privilege/">Here is one breakdown of the principle of least privilege</a></p>
+<p>Notable built-in service accounts in Windows:</p>
+<ul>
+<li>LocalService</li>
+<li>NetworkService</li>
+<li>LocalSystem</li>
+</ul>
+<p>Note: We can also create new accounts and use them for the sole purpose of running a service.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/49/recovery_screen.png" alt="Windows Update Properties showing recovery options for service failures, including actions like restarting the service or computer."></p>
+<p>The recovery tab allows steps to be configured should a service fail. Notice how this service can be set to run a program after the first failure. This is yet another vector that an attacker could use to run malicious programs by utilizing a legitimate service.</p>
+<hr>
+<h3 id="examining-services-using-sc">Examining services using sc</h3>
+<p>Sc can also be used to configure and manage services. Let&#39;s experiment with a few commands.</p>
+<pre><code class="lang-cmd-session"><span class="hljs-attribute">C</span>:\Users\htb-student&gt;sc qc wuauserv
+[SC] QueryServiceConfig SUCCESS
+
+<span class="hljs-attribute">SERVICE_NAME</span>: wuauserv
+        <span class="hljs-attribute">TYPE               </span>: <span class="hljs-number">20</span>  WIN32_SHARE_PROCESS
+        <span class="hljs-attribute">START_TYPE         </span>: <span class="hljs-number">3</span>   DEMAND_START
+        <span class="hljs-attribute">ERROR_CONTROL      </span>: <span class="hljs-number">1</span>   NORMAL
+        <span class="hljs-attribute">BINARY_PATH_NAME   </span>: <span class="hljs-attribute">C</span>:\WINDOWS\system32\svchost.exe -k netsvcs -p
+        <span class="hljs-attribute">LOAD_ORDER_GROUP   </span>:
+        <span class="hljs-attribute">TAG                </span>: <span class="hljs-number">0</span>
+        <span class="hljs-attribute">DISPLAY_NAME       </span>: Windows Update
+        <span class="hljs-attribute">DEPENDENCIES       </span>: rpcss
+        <span class="hljs-attribute">SERVICE_START_NAME </span>: LocalSystem
+</code></pre>
+<p>The <code>sc qc</code> command is used to query the service. This is where knowing the names of services can come in handy. If we wanted to query a service on a device over the network, we could specify the hostname or IP address immediately after <code>sc</code>.</p>
+<pre><code class="lang-cmd-session">C:\Users\htb-student&gt;sc //hostname <span class="hljs-keyword">or</span> ip <span class="hljs-keyword">of</span> box query ServiceName
+</code></pre>
+<p>We can also use sc to start and stop services.</p>
+<pre><code class="lang-cmd-session">C:\Users\htb-student&gt; sc stop wuauserv
+
+[SC] OpenService FAILED <span class="hljs-number">5</span>:
+
+<span class="hljs-keyword">Access</span> <span class="hljs-keyword">is</span> denied.
+</code></pre>
+<p>Notice how we are denied access from performing this action without running it within an administrative context. If we run a command prompt with <code>elevated privileges</code>, we will be permitted to complete this action.</p>
+<pre><code class="lang-cmd-session"><span class="hljs-string">C:</span>\WINDOWS\system32&gt; sc config wuauserv binPath=<span class="hljs-string">C:</span>\Winbows\Perfectlylegitprogram.exe
+
+[SC] ChangeServiceConfig SUCCESS
+<span class="hljs-symbol">
+C:</span>\WINDOWS\system32&gt; sc qc wuauserv
+
+[SC] QueryServiceConfig SUCCESS
+<span class="hljs-symbol">
+SERVICE_NAME:</span> wuauserv
+        <span class="hljs-string">TYPE               :</span> <span class="hljs-number">20</span>  WIN32_SHARE_PROCESS
+        <span class="hljs-string">START_TYPE         :</span> <span class="hljs-number">3</span>   DEMAND_START
+        <span class="hljs-string">ERROR_CONTROL      :</span> <span class="hljs-number">1</span>   NORMAL
+        <span class="hljs-string">BINARY_PATH_NAME   :</span> <span class="hljs-string">C:</span>\Winbows\Perfectlylegitprogram.exe
+        <span class="hljs-string">LOAD_ORDER_GROUP   :</span>
+        <span class="hljs-string">TAG                :</span> <span class="hljs-number">0</span>
+        <span class="hljs-string">DISPLAY_NAME       :</span> Windows Update
+        <span class="hljs-string">DEPENDENCIES       :</span> rpcss
+        <span class="hljs-string">SERVICE_START_NAME :</span> LocalSystem
+</code></pre>
+<p>If we were investigating a situation where we suspected that the system had malware, sc would give us the ability to quickly search and analyze commonly targeted services and newly created services. It’s also much more script-friendly than utilizing GUI tools like <code>services.msc</code>.</p>
+<p>Another helpful way we can examine service permissions using <code>sc</code> is through the <code>sdshow</code> command.</p>
+<pre><code class="lang-cmd-session"><span class="hljs-symbol">C:</span>\WINDOWS\system32&gt; sc sdshow wuauserv
+
+<span class="hljs-symbol">D:</span>(A<span class="hljs-comment">;;CCLCSWRPLORC;;;AU)(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;BA)(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;SY)S:(AU;FA;CCDCLCSWRPWPDTLOSDRCWDWO;;;WD)</span>
+</code></pre>
+<p>At an initial glance, the output looks crazy. It almost seems that we have done something wrong in our command, but there is a meaning to this madness. Every named object in Windows is a <a href="https://docs.microsoft.com/en-us/windows/win32/secauthz/securable-objects">securable object</a>, and even some unnamed objects are securable. If it&#39;s securable in a Windows OS, it will have a <a href="https://docs.microsoft.com/en-us/windows/win32/secauthz/security-descriptors">security descriptor</a>. Security descriptors identify the object’s owner and a primary group containing a <code>Discretionary Access Control List</code> (<code>DACL</code>) and a <code>System Access Control List</code> (<code>SACL</code>).</p>
+<p>Generally, a DACL is used for controlling access to an object, and a SACL is used to account for and log access attempts. This section will examine the DACL, but the same concepts would apply to a SACL.</p>
+<pre><code>D:<span class="hljs-comment">(A;;CCLCSWRPLORC;;;AU)</span><span class="hljs-comment">(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;BA)</span><span class="hljs-comment">(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;SY)</span>
+</code></pre><p>This amalgamation of characters crunched together and delimited by opened and closed parentheses is in a format known as the <code>Security Descriptor Definition Language</code> (<code>SDDL</code>).</p>
+<p>We may be tempted to read from left to right because that is how the English language is typically written, but it can be much different when interacting with computers. Read the entire security descriptor for the <code>Windows Update</code> (<code>wuauserv</code>) service in this order starting with the first letter and set of parentheses:</p>
+<p><code>D: (A;;CCLCSWRPLORC;;;AU)</code></p>
+<ol>
+<li>D: - the proceeding characters are DACL permissions</li>
+<li>AU: - defines the security principal Authenticated Users</li>
+<li>A;; - access is allowed</li>
+<li>CC - SERVICE_QUERY_CONFIG is the full name, and it is a query to the service control manager (SCM) for the service configuration</li>
+<li>LC - SERVICE_QUERY_STATUS is the full name, and it is a query to the service control manager (SCM) for the current status of the service</li>
+<li>SW - SERVICE_ENUMERATE_DEPENDENTS is the full name, and it will enumerate a list of dependent services</li>
+<li>RP - SERVICE_START is the full name, and it will start the service</li>
+<li>LO - SERVICE_INTERROGATE is the full name, and it will query the service for its current status</li>
+<li>RC - READ_CONTROL is the full name, and it will query the security descriptor of the service</li>
+</ol>
+<p>As we read the security descriptor, it can be easy to get lost in the seemingly random order of characters, but recall that we are essentially viewing access control entries in an access control list. Each set of 2 characters in between the semi-colons represents actions allowed to be performed by a specific user or group.</p>
+<p><code>;;CCLCSWRPLORC;;;</code></p>
+<p>After the last set of semi-colons, the characters specify the security principal (User and/or Group) that is permitted to perform those actions.</p>
+<p><code>;;;AU</code></p>
+<p>The character immediately after the opening parentheses and before the first set of semi-colons defines whether the actions are Allowed or Denied.</p>
+<p><code>A;;</code></p>
+<p>This entire security descriptor associated with the <code>Windows Update</code> (<code>wuauserv</code>) service has three sets of access control entries because there are three different security principals. Each security principal has specific permissions applied.</p>
+<hr>
+<h3 id="examine-service-permissions-using-powershell">Examine service permissions using PowerShell</h3>
+<p>Using the <code>Get-Acl</code> PowerShell cmdlet, we can examine service permissions by targeting the path of a specific service in the registry.</p>
+<pre><code class="lang-powershell-session">PS C:\Users\htb-student&gt; Get-ACL -Path HKLM:\System\CurrentControlSet\Services\wuauserv | Format-List
+
+Path   : Microsoft.PowerShell.Core\Registry::HKEY_LOCAL_MACHINE\System\CurrentControlSet\Services\wuauserv
+Owner  : NT AUTHORITY\SYSTEM
+Group  : NT AUTHORITY\SYSTEM
+Access : BUILTIN\Users Allow  ReadKey
+         BUILTIN\Users Allow  <span class="hljs-string">-2147483648</span>
+         BUILTIN\Administrators Allow  FullControl
+         BUILTIN\Administrators Allow  268435456
+         NT AUTHORITY\SYSTEM Allow  FullControl
+         NT AUTHORITY\SYSTEM Allow  268435456
+         CREATOR OWNER Allow  268435456
+         APPLICATION PACKAGE AUTHORITY\ALL APPLICATION PACKAGES Allow  ReadKey
+         APPLICATION PACKAGE AUTHORITY\ALL APPLICATION PACKAGES Allow  <span class="hljs-string">-2147483648</span>
+         S<span class="hljs-string">-1</span><span class="hljs-string">-15</span><span class="hljs-string">-3</span><span class="hljs-string">-1024</span><span class="hljs-string">-1065365936</span><span class="hljs-string">-1281604716</span><span class="hljs-string">-3511738428</span><span class="hljs-string">-1654721687</span><span class="hljs-string">-432734479</span><span class="hljs-string">-3232135806</span><span class="hljs-string">-4053264122</span><span class="hljs-string">-3456934681</span> Allow
+         ReadKey
+         S<span class="hljs-string">-1</span><span class="hljs-string">-15</span><span class="hljs-string">-3</span><span class="hljs-string">-1024</span><span class="hljs-string">-1065365936</span><span class="hljs-string">-1281604716</span><span class="hljs-string">-3511738428</span><span class="hljs-string">-1654721687</span><span class="hljs-string">-432734479</span><span class="hljs-string">-3232135806</span><span class="hljs-string">-4053264122</span><span class="hljs-string">-3456934681</span> Allow
+         <span class="hljs-string">-2147483648</span>
+Audit  :
+Sddl   : O:SYG:SYD:AI(A;ID;KR;;;BU)(A;CIIOID;GR;;;BU)(A;ID;KA;;;BA)(A;CIIOID;GA;;;BA)(A;ID;KA;;;SY)(A;CIIOID;GA;;;SY)(A
+         ;CIIOID;GA;;;CO)(A;ID;KR;;;AC)(A;CIIOID;GR;;;AC)(A;ID;KR;;;S<span class="hljs-string">-1</span><span class="hljs-string">-15</span><span class="hljs-string">-3</span><span class="hljs-string">-1024</span><span class="hljs-string">-1065365936</span><span class="hljs-string">-1281604716</span><span class="hljs-string">-3511738428</span><span class="hljs-string">-1654</span>
+         721687<span class="hljs-string">-432734479</span><span class="hljs-string">-3232135806</span><span class="hljs-string">-4053264122</span><span class="hljs-string">-3456934681</span>)(A;CIIOID;GR;;;S<span class="hljs-string">-1</span><span class="hljs-string">-15</span><span class="hljs-string">-3</span><span class="hljs-string">-1024</span><span class="hljs-string">-1065365936</span><span class="hljs-string">-1281604716</span><span class="hljs-string">-351173842</span>
+         8<span class="hljs-string">-1654721687</span><span class="hljs-string">-432734479</span><span class="hljs-string">-3232135806</span><span class="hljs-string">-4053264122</span><span class="hljs-string">-3456934681</span>)
+</code></pre>
+<p>Notice how this command returns specific account permissions in an easy-to-read format and in SDDL. Also, the SID that represents each security principal (User and/or Group) is present in the SDDL. This is something we do not get when running <code>sc</code> from the command prompt.</p>
+<p>Knowing how to interact with services and their associated permissions from the command line makes it easier to script out these tasks. While it is good to know how to perform these tasks from the GUI, it does not scale well as we start getting into larger network environments and Domains.</p>
+<hr>
+<h2 id="windows-sessions">Windows Sessions</h2>
+<hr>
+<p><strong>Interactive</strong></p>
+<p>An interactive, or local logon session, is initiated by a user authenticating to a local or domain system by entering their credentials. An interactive logon can be initiated by logging directly into the system, by requesting a secondary logon session using the <code>runas</code> command via the command line, or through a Remote Desktop connection.</p>
+<p><strong>Non-interactive</strong></p>
+<p>Non-interactive accounts in Windows differ from standard user accounts as they do not require login credentials. There are 3 types of non-interactive accounts: the Local System Account, Local Service Account, and the Network Service Account. Non-interactive accounts are generally used by the Windows operating system to automatically start services and applications without requiring user interaction. These accounts have no password associated with them and are usually used to start services when the system boots or to run scheduled tasks.</p>
+<p>There are differences between the three types of accounts:</p>
+<table><thead><tr><th width="224.75">Account</th><th>Description</th></tr></thead><tbody><tr><td>Local System Account</td><td>Also known as the <code>NT AUTHORITY\SYSTEM</code> account, this is the most powerful account in Windows systems. It is used for a variety of OS-related tasks, such as starting Windows services. This account is more powerful than accounts in the local administrators group.</td></tr><tr><td>Local Service Account</td><td>Known as the <code>NT AUTHORITY\LocalService</code> account, this is a less privileged version of the SYSTEM account and has similar privileges to a local user account. It is granted limited functionality and can start some services.</td></tr><tr><td>Network Service Account</td><td>This is known as the <code>NT AUTHORITY\NetworkService</code> account and is similar to a standard domain user account. It has similar privileges to the Local Service Account on the local machine. It can establish authenticated sessions for certain network services.</td></tr></tbody></table>
+
+<hr>
+<h2 id="interacting-with-the-windows-operating-system">Interacting with the Windows Operating System</h2>
+<hr>
+<p><strong>Graphical User Interface</strong></p>
+<p>The concept of a graphical user interface (GUI) was introduced in the late 1970s by the Xerox Palo Alto research laboratory. It was added to Apple and Microsoft operating systems to address usability concerns for everyday users that would likely have difficulty navigating the command line. Most casual Windows computer users do not ever need to interact with the operating system via the command line. As the name alludes to, a GUI provides users with an interactive point and click interface for interacting with the operating system and installed applications and services.</p>
+<p>The introduction of the GUI opened up widespread appeal and access to computers across many demographics since users would be able to interact with their computer without having to memorize commands or know any programming language. Systems administrators commonly use GUI-based systems for administering Active Directory, configuring IIS, or interacting with databases.</p>
+<hr>
+<h3 id="remote-desktop-protocol-rdp-">Remote Desktop Protocol (RDP)</h3>
+<p><a href="https://support.microsoft.com/en-us/help/186607/understanding-the-remote-desktop-protocol-rdp">RDP</a> is a proprietary Microsoft protocol which allows a user to connect to a remote system over a network connection and obtain a graphical user interface. The user connects using RDP client software to a target system running RDP server software. RDP uses port 3389 to open a dedicated network channel for sending data back and forth. When connecting via RDP, a user can access the GUI as if they were actually sitting at the computer and logging into it locally. RDP is often used by system administrators to administer remote systems quickly. It can also allow users to access their work computers when traveling or working from home after connecting to a Virtual Private Network (VPN).</p>
+<hr>
+<h3 id="windows-command-line">Windows Command Line</h3>
+<p>Command-line interfaces give users greater control over their systems and can be used to perform a wide variety of day-to-day, administrative, and troubleshooting tasks. It can be leveraged to introduce automation to perform certain tasks quickly (such as adding many users to a domain at once). In Windows operating systems, the main two ways to interact with the system from the command line are via the Command Prompt (CMD) and PowerShell.</p>
+<p>The <a href="https://download.microsoft.com/download/5/8/9/58911986-D4AD-4695-BF63-F734CD4DF8F2/ws-commands.pdf">Windows Command Reference</a> from Microsoft is a comprehensive A-Z command reference which includes an overview, usage examples, and command syntax for most Windows commands, and familiarity with it is recommended.</p>
+<hr>
+<h3 id="cmd">CMD</h3>
+<p>The Command Prompt (cmd.exe) is used to enter and execute commands. A user can enter one-off commands such as <code>ipconfig</code> to view IP address information or perform more advanced tasks such as setting up scheduled tasks or creating scripts and batch files. The Command prompt can be opened from the Start Menu, by typing <code>cmd</code> in the run dialogue box, or by directly launching the binary from <code>C:\Windows\system32\cmd.exe</code>.</p>
+<p>After launching <code>cmd.exe</code> we can type <code>help</code> to see a listing of available commands.</p>
+<pre><code class="lang-cmd-session">C:\htb&gt; help
+For more information <span class="hljs-keyword">on</span> <span class="hljs-title">a</span> <span class="hljs-title">specific</span> <span class="hljs-title">command</span>, <span class="hljs-title">type</span> <span class="hljs-title">HELP</span> <span class="hljs-title">command-name</span>
+ASSOC          Displays <span class="hljs-keyword">or</span> modifies <span class="hljs-built_in">file</span> extension associations.
+ATTRIB         Displays <span class="hljs-keyword">or</span> changes <span class="hljs-built_in">file</span> attributes.
+BREAK          Sets <span class="hljs-keyword">or</span> clears extended CTRL+C checking.
+BCDEDIT        Sets properties <span class="hljs-keyword">in</span> boot database <span class="hljs-built_in">to</span> control boot loading.
+CACLS          Displays <span class="hljs-keyword">or</span> modifies access control lists (ACLs) <span class="hljs-keyword">of</span> <span class="hljs-built_in">files</span>.
+CALL           Calls <span class="hljs-literal">one</span> batch program <span class="hljs-built_in">from</span> another.
+CD             Displays <span class="hljs-keyword">the</span> name <span class="hljs-keyword">of</span> <span class="hljs-keyword">or</span> changes <span class="hljs-keyword">the</span> current <span class="hljs-built_in">directory</span>.
+CHCP           Displays <span class="hljs-keyword">or</span> sets <span class="hljs-keyword">the</span> active code page <span class="hljs-built_in">number</span>.
+CHDIR          Displays <span class="hljs-keyword">the</span> name <span class="hljs-keyword">of</span> <span class="hljs-keyword">or</span> changes <span class="hljs-keyword">the</span> current <span class="hljs-built_in">directory</span>.
+CHKDSK         Checks <span class="hljs-keyword">a</span> disk <span class="hljs-keyword">and</span> displays <span class="hljs-keyword">a</span> status report.
+CHKNTFS        Displays <span class="hljs-keyword">or</span> modifies <span class="hljs-keyword">the</span> checking <span class="hljs-keyword">of</span> disk <span class="hljs-keyword">at</span> boot <span class="hljs-built_in">time</span>.
+CLS            Clears <span class="hljs-keyword">the</span> screen.
+CMD            Starts <span class="hljs-keyword">a</span> <span class="hljs-built_in">new</span> instance <span class="hljs-keyword">of</span> <span class="hljs-keyword">the</span> Windows <span class="hljs-keyword">command</span> <span class="hljs-title">interpreter</span>.
+COLOR          Sets <span class="hljs-keyword">the</span> default console foreground <span class="hljs-keyword">and</span> background colors.
+COMP           Compares <span class="hljs-keyword">the</span> contents <span class="hljs-keyword">of</span> <span class="hljs-literal">two</span> <span class="hljs-built_in">files</span> <span class="hljs-keyword">or</span> sets <span class="hljs-keyword">of</span> <span class="hljs-built_in">files</span>.
+COMPACT        Displays <span class="hljs-keyword">or</span> alters <span class="hljs-keyword">the</span> compression <span class="hljs-keyword">of</span> <span class="hljs-built_in">files</span> <span class="hljs-keyword">on</span> <span class="hljs-title">NTFS</span> <span class="hljs-title">partitions</span>.
+CONVERT        Converts FAT volumes <span class="hljs-built_in">to</span> NTFS.  You cannot <span class="hljs-built_in">convert</span> <span class="hljs-keyword">the</span>
+               current drive.
+COPY           Copies <span class="hljs-literal">one</span> <span class="hljs-keyword">or</span> more <span class="hljs-built_in">files</span> <span class="hljs-built_in">to</span> another location.
+
+&lt;SNIP&gt;
+</code></pre>
+<p>For more information about a specific command, we can type <code>help &lt;command name&gt;</code>.</p>
+<pre><code class="lang-cmd-session">C:\htb&gt; help schtasks
+
+SCHTASKS /<span class="hljs-keyword">parameter</span> [arguments]
+
+Description:
+    Enables <span class="hljs-comment">an administrator to create, delete, query, change, run and</span>
+    end <span class="hljs-comment">scheduled tasks on a local or remote system.</span>
+
+<span class="hljs-keyword">Parameter</span> <span class="hljs-comment">List:</span>
+    /Create         Creates a new scheduled task.
+
+    /Delete         <span class="hljs-comment">Deletes the scheduled task(s).</span>
+
+    /Query          Displays <span class="hljs-keyword">all</span> scheduled tasks.
+
+    /Change         <span class="hljs-comment">Changes the properties of scheduled task.</span>
+
+    /Run            Runs the scheduled task on demand.
+
+    /End            <span class="hljs-comment">Stops the currently running scheduled task.</span>
+
+    /ShowSid        Shows the security identifier corresponding to a scheduled task name.
+
+    /?              Displays <span class="hljs-comment">this help message.</span>
+
+Examples:
+    SCHTASKS
+    SCHTASKS /?
+    SCHTASKS /<span class="hljs-comment">Run</span> /?
+    SCHTASKS /<span class="hljs-comment">End</span> /?
+    SCHTASKS /<span class="hljs-comment">Create</span> /?
+    SCHTASKS /<span class="hljs-comment">Delete</span> /?
+    SCHTASKS /<span class="hljs-comment">Query</span>  /?
+    SCHTASKS /<span class="hljs-comment">Change</span> /?
+    SCHTASKS /<span class="hljs-comment">ShowSid</span> /?
+</code></pre>
+<p>Note that certain commands have their own help menus, which can be accessed by typing <code>&lt;command&gt; /?</code>. For example, information about the <code>ipconfig</code> command can be seen below.</p>
+<pre><code class="lang-cmd-session">C:\htb&gt; ipconfig /?
+
+USAGE:
+    ipconfig [/allcompartments] [/? | /all |
+                                 /renew [adapter] | /release [adapter] |
+                                 /renew6 [adapter] | /release6 [adapter] |
+                                 /flushdns | /displaydns | /registerdns |
+                                 /showclassid adapter |
+                                 /setclassid adapter [classid] |
+                                 /showclassid6 adapter |
+                                 /setclassid6 adapter [classid] ]
+
+where
+    adapter             Connection name
+                       (wildcard <span class="hljs-keyword">characters</span> * <span class="hljs-keyword">and</span> ? allowed, see examples)
+
+    Options:
+       /?               Display this help message
+       /all             Display full configuration information.
+       /release         Release <span class="hljs-keyword">the</span> IPv4 address <span class="hljs-keyword">for</span> <span class="hljs-keyword">the</span> specified adapter.
+       /release6        Release <span class="hljs-keyword">the</span> IPv6 address <span class="hljs-keyword">for</span> <span class="hljs-keyword">the</span> specified adapter.
+       /renew           Renew <span class="hljs-keyword">the</span> IPv4 address <span class="hljs-keyword">for</span> <span class="hljs-keyword">the</span> specified adapter.
+       /renew6          Renew <span class="hljs-keyword">the</span> IPv6 address <span class="hljs-keyword">for</span> <span class="hljs-keyword">the</span> specified adapter.
+       /flushdns        Purges <span class="hljs-keyword">the</span> DNS Resolver cache.
+       /registerdns     Refreshes all DHCP leases <span class="hljs-keyword">and</span> re-registers DNS names
+       /displaydns      Display <span class="hljs-keyword">the</span> contents <span class="hljs-keyword">of</span> <span class="hljs-keyword">the</span> DNS Resolver Cache.
+       /showclassid     Displays all <span class="hljs-keyword">the</span> dhcp class IDs allowed <span class="hljs-keyword">for</span> adapter.
+       /setclassid      Modifies <span class="hljs-keyword">the</span> dhcp class id.
+       /showclassid6    Displays all <span class="hljs-keyword">the</span> IPv6 DHCP class IDs allowed <span class="hljs-keyword">for</span> adapter.
+       /setclassid6     Modifies <span class="hljs-keyword">the</span> IPv6 DHCP class id.
+
+&lt;SNIP
+</code></pre>
+<hr>
+<h3 id="powershell">PowerShell</h3>
+<p>Windows PowerShell is a command shell that was designed by Microsoft to be more geared towards system administrators. PowerShell, like the Windows command line, has an interactive command prompt as well as a powerful scripting environment. PowerShell is built on top of the .NET Framework, which is used for building and running applications on Windows. This makes it a very powerful tool for interfacing directly with the operating system.</p>
+<p>Like the command prompt, PowerShell gives us direct access to the file system, and we run the majority of the same commands that we can within a cmd shell.</p>
+<hr>
+<h3 id="cmdlets">Cmdlets</h3>
+<p>PowerShell utilizes <a href="https://docs.microsoft.com/en-us/powershell/scripting/developer/cmdlet/cmdlet-overview?view=powershell-7">cmdlets</a>, which are small single-function tools built into the shell. There are more than 100 core cmdlets, and many additional ones have been written, or we can author our own to perform more complex tasks. PowerShell also supports both simple and complex scripts used for system administration tasks, automation, and more.</p>
+<p>Cmdlets are in the form of <code>Verb-Noun</code>. For example, the command <code>Get-ChildItem</code> can be used to list our current directory. Cmdlets also take arguments or flags. We can type <code>Get-ChildItem -</code> and hit the tab key to iterate through the arguments. A command such as <code>Get-ChildItem -Recurse</code> will show us the contents of our current working directory and all subdirectories. Another example would be <code>Get-ChildItem -Path C:\Users\Administrator\Documents</code> to get the contents of another directory. Finally, we can combine arguments such as this to list all subdirectories&#39; contents within another directory recursively: <code>Get-ChildItem -Path C:\Users\Administrator\Downloads -Recurse</code>.</p>
+<hr>
+<h3 id="aliases">Aliases</h3>
+<p>Many cmdlets in PowerShell also have aliases. For example, the aliases for the cmdlet <code>Set-Location</code>, to change directories, is either <code>cd</code> or <code>sl</code>. Meanwhile, the aliases for <code>Get-ChildItem</code> are <code>ls</code> and <code>gci</code>. We can view all available aliases by typing <code>Get-Alias</code>.</p>
+<pre><code class="lang-powershell-session">PS C:\htb&gt; get-alias
+
+CommandType     Name                                               Version    Source
+-----------     ----                                               -------    ------
+A<span class="hljs-function"><span class="hljs-title">lias</span>           % -&gt;</span> ForEach-Object
+A<span class="hljs-function"><span class="hljs-title">lias</span>           ? -&gt;</span> Where-Object
+A<span class="hljs-function"><span class="hljs-title">lias</span>           ac -&gt;</span> Add-Content
+A<span class="hljs-function"><span class="hljs-title">lias</span>           asnp -&gt;</span> Add-PSSnapin
+A<span class="hljs-function"><span class="hljs-title">lias</span>           cat -&gt;</span> Get-Content
+A<span class="hljs-function"><span class="hljs-title">lias</span>           cd -&gt;</span> Set-Location
+A<span class="hljs-function"><span class="hljs-title">lias</span>           CFS -&gt;</span> ConvertFrom-String                          <span class="hljs-number">3.1</span>.<span class="hljs-number">0.0</span>    Microsoft.PowerShell.Utility
+A<span class="hljs-function"><span class="hljs-title">lias</span>           chdir -&gt;</span> Set-Location
+A<span class="hljs-function"><span class="hljs-title">lias</span>           clc -&gt;</span> Clear-Content
+A<span class="hljs-function"><span class="hljs-title">lias</span>           clear -&gt;</span> Clear-Host
+A<span class="hljs-function"><span class="hljs-title">lias</span>           clhy -&gt;</span> Clear-History
+A<span class="hljs-function"><span class="hljs-title">lias</span>           cli -&gt;</span> Clear-Item
+A<span class="hljs-function"><span class="hljs-title">lias</span>           clp -&gt;</span> Clear-ItemProperty
+</code></pre>
+<p>We can also set up our own aliases with <code>New-Alias</code> and get the alias for any cmdlet with <code>Get-Alias -Name</code>.</p>
+<pre><code class="lang-powershell-session">PS <span class="hljs-keyword">C</span>:\htb&gt; New-Alias -Name <span class="hljs-string">"Show-Files"</span> <span class="hljs-keyword">Get</span>-ChildItem
+PS <span class="hljs-keyword">C</span>:\&gt; <span class="hljs-keyword">Get</span>-Alias -Name <span class="hljs-string">"Show-Files"</span>
+
+CommandType     Name                                               <span class="hljs-keyword">Version</span>    Source
+-----------     ----                                               -------    ------
+Alias           <span class="hljs-keyword">Show</span>-Files
+</code></pre>
+<p>PowerShell has a help system for cmdlets, functions, scripts, and concepts. This is not installed by default, but we can either run the <code>Get-Help &lt;cmdlet-name&gt; -Online</code> command to open the online help for a cmdlet or function in our web browser. We can type <code>Update-Help</code> to download and install help files locally.</p>
+<pre><code class="lang-powershell-session">PS C:\htb&gt; <span class="hljs-keyword">help</span>
+
+TOPIC
+    Windows PowerShell Help System
+
+SHORT DESCRIPTION
+    Displays <span class="hljs-keyword">help</span> about Windows PowerShell cmdlets <span class="hljs-built_in">and</span> concepts.
+
+LONG DESCRIPTION
+    Windows PowerShell Help describes Windows PowerShell cmdlets,
+    functions, scripts, <span class="hljs-built_in">and</span> modules, <span class="hljs-built_in">and</span> explains concepts, including
+    the elements of the Windows PowerShell <span class="hljs-keyword">language</span>.
+
+    Windows PowerShell does not include <span class="hljs-keyword">help</span> <span class="hljs-keyword">files</span>, but you can <span class="hljs-keyword">read</span> the
+    <span class="hljs-keyword">help</span> topics online, <span class="hljs-built_in">or</span> use the Update-Help cmdlet <span class="hljs-keyword">to</span> download <span class="hljs-keyword">help</span> <span class="hljs-keyword">files</span>
+    <span class="hljs-keyword">to</span> your computer <span class="hljs-built_in">and</span> then use the Get-Help cmdlet <span class="hljs-keyword">to</span> <span class="hljs-keyword">display</span> the <span class="hljs-keyword">help</span>
+    topics at the <span class="hljs-keyword">command</span> <span class="hljs-built_in">line</span>.
+
+    You can also use the Update-Help cmdlet <span class="hljs-keyword">to</span> download updated <span class="hljs-keyword">help</span> <span class="hljs-keyword">files</span>
+    <span class="hljs-keyword">as</span> they are released <span class="hljs-keyword">so</span> that your local <span class="hljs-keyword">help</span> content <span class="hljs-keyword">is</span> never obsolete.
+
+    Without <span class="hljs-keyword">help</span> <span class="hljs-keyword">files</span>, Get-Help displays auto-generated <span class="hljs-keyword">help</span> <span class="hljs-keyword">for</span> cmdlets,
+    functions, <span class="hljs-built_in">and</span> scripts.
+
+
+  ONLINE HELP
+    You can <span class="hljs-keyword">find</span> <span class="hljs-keyword">help</span> <span class="hljs-keyword">for</span> Windows PowerShell online in the TechNet Library
+    beginning at http://<span class="hljs-keyword">go</span>.microsoft.<span class="hljs-keyword">com</span>/fwlink/?LinkID=<span class="hljs-number">108518</span>.
+
+    To <span class="hljs-keyword">open</span> online <span class="hljs-keyword">help</span> <span class="hljs-keyword">for</span> any cmdlet <span class="hljs-built_in">or</span> <span class="hljs-function"><span class="hljs-keyword">function</span>, <span class="hljs-title">type</span>:</span>
+
+        Get-Help <span class="hljs-symbol">&lt;cmdlet-name&gt;</span> -Online
+
+<span class="hljs-symbol">&lt;SNIP&gt;</span>
+</code></pre>
+<p>Typing a command such as <code>Get-Help Get-AppPackage</code> will return just the partial help unless the Help files are installed.</p>
+<pre><code class="lang-powershell-session">PS C:\htb&gt;  Get-Help Get-AppPackage
+
+NAME
+    Get-AppxPackage
+
+SYNTAX
+    Get-AppxPackage [[-Name] &lt;string&gt;] [[-Publisher] &lt;string&gt;] [-AllUsers] [-PackageTypeFilter {None | Main |
+    Framework | Resource | Bundle | Xap | Optional | All}] [-User &lt;string&gt;] [-Volume &lt;AppxVolume&gt;]
+    <span class="hljs-meta">[&lt;CommonParameters&gt;]</span>
+
+
+ALIASES
+    Get-AppPackage
+
+
+REMARKS
+    Get-Help cannot find the Help files <span class="hljs-keyword">for</span> this cmdlet on this computer. It is displaying only partial help.
+        -- To download <span class="hljs-keyword">and</span> install Help files <span class="hljs-keyword">for</span> the <span class="hljs-keyword">module</span> that includes this cmdlet, <span class="hljs-keyword">use</span> Update-Help.
+</code></pre>
+<hr>
+<h3 id="running-scripts">Running Scripts</h3>
+<p>The PowerShell ISE (Integrated Scripting Environment) allows users to write PowerShell scripts on the fly. It also has an autocomplete/lookup function for PowerShell commands. The PowerShell ISE allows us to write and run scripts in the same console, which allows for quick debugging.</p>
+<p>We can run PowerShell scripts in a variety of ways. If we know the functions, we can run the script either locally or after loading into memory with a download cradle like the below example.</p>
+<pre><code class="lang-powershell-session">PS C:\htb&gt; .\PowerView.ps1;Get-LocalGroup |fl
+
+Description     : <span class="hljs-type">Users</span> <span class="hljs-keyword">of</span> Docker Desktop
+Name            : <span class="hljs-type">docker</span>-users
+SID             : <span class="hljs-type">S</span>-<span class="hljs-number">1</span>-<span class="hljs-number">5</span>-<span class="hljs-number">21</span>-<span class="hljs-number">674899381</span>-<span class="hljs-number">4069889467</span>-<span class="hljs-number">2080702030</span>-<span class="hljs-number">1004</span>
+PrincipalSource : <span class="hljs-type">Local</span>
+ObjectClass     : <span class="hljs-type">Group</span>
+
+Description     : <span class="hljs-type">VMware</span> User Group
+Name            : __<span class="hljs-type">vmware</span>__
+SID             : <span class="hljs-type">S</span>-<span class="hljs-number">1</span>-<span class="hljs-number">5</span>-<span class="hljs-number">21</span>-<span class="hljs-number">674899381</span>-<span class="hljs-number">4069889467</span>-<span class="hljs-number">2080702030</span>-<span class="hljs-number">1003</span>
+PrincipalSource : <span class="hljs-type">Local</span>
+ObjectClass     : <span class="hljs-type">Group</span>
+
+Description     : <span class="hljs-type">Members</span> <span class="hljs-keyword">of</span> this group can remotely query authorization attributes <span class="hljs-keyword">and</span> permissions <span class="hljs-keyword">for</span> resources on
+                  this computer.
+Name            : <span class="hljs-keyword"><span class="hljs-keyword">Access</span></span> <span class="hljs-type">Control</span> Assistance Operators
+SID             : <span class="hljs-type">S</span>-<span class="hljs-number">1</span>-<span class="hljs-number">5</span>-<span class="hljs-number">32</span>-<span class="hljs-number">579</span>
+PrincipalSource : <span class="hljs-type">Local</span>
+ObjectClass     : <span class="hljs-type">Group</span>
+
+Description     : <span class="hljs-type">Administrators</span> have complete <span class="hljs-keyword">and</span> unrestricted <span class="hljs-keyword">access</span> to the computer/domain
+Name            : <span class="hljs-type">Administrators</span>
+SID             : <span class="hljs-type">S</span>-<span class="hljs-number">1</span>-<span class="hljs-number">5</span>-<span class="hljs-number">32</span>-<span class="hljs-number">544</span>
+PrincipalSource : <span class="hljs-type">Local</span>
+
+&lt;SNIP&gt;
+</code></pre>
+<p>One common way to work with a script in PowerShell is to import it so that all functions are then available within our current PowerShell console session: <code>Import-Module .\PowerView.ps1</code>. We can then either start a command and cycle through the options or type <code>Get-Module</code> to list all loaded modules and their associated commands.</p>
+<pre><code class="lang-powershell-session">PS C:\htb&gt; Get-<span class="hljs-keyword">Module</span> | <span class="hljs-type">select</span> Name,ExportedCommands | <span class="hljs-type">fl</span>
+
+
+Name             : Appx
+ExportedCommands : {[<span class="hljs-keyword">Add</span>-AppxPackage, <span class="hljs-keyword">Add</span>-AppxPackage], [<span class="hljs-keyword">Add</span>-AppxVolume, <span class="hljs-keyword">Add</span>-AppxVolume], [Dismount-AppxVolume,
+                   Dismount-AppxVolume], [Get-AppxDefaultVolume, Get-AppxDefaultVolume]...}
+
+Name             : Microsoft.PowerShell.LocalAccounts
+ExportedCommands : {[<span class="hljs-keyword">Add</span>-LocalGroupMember, <span class="hljs-keyword">Add</span>-LocalGroupMember], [Disable-LocalUser, Disable-LocalUser],
+                   [Enable-LocalUser, Enable-LocalUser], [Get-LocalGroup, Get-LocalGroup]...}
+
+Name             : Microsoft.PowerShell.Management
+ExportedCommands : {[<span class="hljs-keyword">Add</span>-Computer, <span class="hljs-keyword">Add</span>-Computer], [<span class="hljs-keyword">Add</span>-Content, <span class="hljs-keyword">Add</span>-Content], [Checkpoint-Computer,
+                   Checkpoint-Computer], [Clear-Content, Clear-Content]...}
+
+Name             : Microsoft.PowerShell.Utility
+ExportedCommands : {[<span class="hljs-keyword">Add</span>-Member, <span class="hljs-keyword">Add</span>-Member], [<span class="hljs-keyword">Add</span>-<span class="hljs-keyword">Type</span>, <span class="hljs-keyword">Add</span>-<span class="hljs-keyword">Type</span>], [Clear-<span class="hljs-keyword">Variable</span>, Clear-<span class="hljs-keyword">Variable</span>], [Compare-Object,
+                   Compare-Object]...}
+
+Name             : PSReadline
+ExportedCommands : {[Get-PSReadLineKeyHandler, Get-PSReadLineKeyHandler], [Get-PSReadLineOption,
+                   Get-PSReadLineOption], [<span class="hljs-keyword">Remove</span>-PSReadLineKeyHandler, <span class="hljs-keyword">Remove</span>-PSReadLineKeyHandler],
+                   [<span class="hljs-keyword">Set</span>-PSReadLineKeyHandler, <span class="hljs-keyword">Set</span>-PSReadLineKeyHandler]...}
+</code></pre>
+<hr>
+<h3 id="execution-policy">Execution Policy</h3>
+<p>Sometimes we will find that we are unable to run scripts on a system. This is due to a security feature called the <code>execution policy</code>, which attempts to prevent the execution of malicious scripts. The possible policies are:</p>
+<table>
+<thead>
+<tr>
+<th><strong>Policy</strong></th>
+<th><strong>Description</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>AllSigned</code></td>
+<td>All scripts can run, but a trusted publisher must sign scripts and configuration files. This includes both remote and local scripts. We receive a prompt before running scripts signed by publishers that we have not yet listed as either trusted or untrusted.</td>
+</tr>
+<tr>
+<td><code>Bypass</code></td>
+<td>No scripts or configuration files are blocked, and the user receives no warnings or prompts.</td>
+</tr>
+<tr>
+<td><code>Default</code></td>
+<td>This sets the default execution policy, <code>Restricted</code> for Windows desktop machines and <code>RemoteSigned</code> for Windows servers.</td>
+</tr>
+<tr>
+<td><code>RemoteSigned</code></td>
+<td>Scripts can run but requires a digital signature on scripts that are downloaded from the internet. Digital signatures are not required for scripts that are written locally.</td>
+</tr>
+<tr>
+<td><code>Restricted</code></td>
+<td>This allows individual commands but does not allow scripts to be run. All script file types, including configuration files (<code>.ps1xml</code>), module script files (<code>.psm1</code>), and PowerShell profiles (<code>.ps1</code>) are blocked.</td>
+</tr>
+<tr>
+<td><code>Undefined</code></td>
+<td>No execution policy is set for the current scope. If the execution policy for ALL scopes is set to undefined, then the default execution policy of <code>Restricted</code> will be used.</td>
+</tr>
+<tr>
+<td><code>Unrestricted</code></td>
+<td>This is the default execution policy for non-Windows computers, and it cannot be changed. This policy allows for unsigned scripts to be run but warns the user before running scripts that are not from the local intranet zone.</td>
+</tr>
+</tbody>
+</table>
+<p>Below is an example of the current execution policy for all scopes.</p>
+<pre><code class="lang-powershell-session">PS <span class="hljs-keyword">C</span>:\htb&gt; <span class="hljs-keyword">Get</span>-ExecutionPolicy -<span class="hljs-keyword">List</span>
+
+        Scope ExecutionPolicy
+        ----- ---------------
+MachinePolicy       <span class="hljs-keyword">Undefined</span>
+   UserPolicy       <span class="hljs-keyword">Undefined</span>
+      Process       <span class="hljs-keyword">Undefined</span>
+  CurrentUser       <span class="hljs-keyword">Undefined</span>
+ LocalMachine    RemoteSigned
+</code></pre>
+<p>The execution policy is not meant to be a security control that restricts user actions. A user can easily bypass the policy by either typing the script contents directly into the PowerShell window, downloading and invoking the script, or specifying the script as an encoded command. It can also be bypassed by adjusting the execution policy (if the user has the proper rights) or setting the execution policy for the current process scope (which can be done by almost any user as it does not require a configuration change and will only be set for the duration of the user&#39;s session).</p>
+<p>Below is an example of changing the execution policy for the current process (session).</p>
+<pre><code class="lang-powershell-session">PS C:<span class="hljs-string">\htb&gt;</span> Set-ExecutionPolicy Bypass -Scope Process
+
+Execution Policy Change
+The execution policy helps protect you <span class="hljs-keyword">from</span> scripts <span class="hljs-literal">that</span> you <span class="hljs-keyword">do</span> <span class="hljs-keyword">not</span> trust. Changing the execution policy might expose
+you <span class="hljs-keyword">to</span> the security risks described <span class="hljs-keyword">in</span> the about_Execution_Policies help topic at
+https:<span class="hljs-regexp">/go.microsoft.com/fwlink/</span>?LinkID=<span class="hljs-number">135170.</span> Do you want <span class="hljs-keyword">to</span> change the execution policy?
+[Y] Yes  [A] Yes <span class="hljs-keyword">to</span> All  [N] No  [L] No <span class="hljs-keyword">to</span> All  [S] Suspend  [?] Help (<span class="hljs-keyword">default</span> <span class="hljs-keyword">is</span> <span class="hljs-string">"N"</span>): Y
+</code></pre>
+<p>We can now see that the execution policy has been changed.</p>
+<pre><code class="lang-powershell-session">PS <span class="hljs-keyword">C</span>:\htb&gt;  <span class="hljs-keyword">Get</span>-ExecutionPolicy -<span class="hljs-keyword">List</span>
+
+        Scope ExecutionPolicy
+        ----- ---------------
+MachinePolicy       <span class="hljs-keyword">Undefined</span>
+   UserPolicy       <span class="hljs-keyword">Undefined</span>
+      Process          Bypass
+  CurrentUser       <span class="hljs-keyword">Undefined</span>
+ LocalMachine    RemoteSigned
+</code></pre>
+<hr>
+<h2 id="windows-management-instrumentation-wmi-">Windows Management Instrumentation (WMI)</h2>
+<hr>
+<p>WMI is a subsystem of PowerShell that provides system administrators with powerful tools for system monitoring. The goal of WMI is to consolidate device and application management across corporate networks. WMI is a core part of the Windows operating system and has come pre-installed since Windows 2000. It is made up of the following components:</p>
+<table>
+<thead>
+<tr>
+<th><strong>Component Name</strong></th>
+<th><strong>Description</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>WMI service</td>
+<td>The Windows Management Instrumentation process, which runs automatically at boot and acts as an intermediary between WMI providers, the WMI repository, and managing applications.</td>
+</tr>
+<tr>
+<td>Managed objects</td>
+<td>Any logical or physical components that can be managed by WMI.</td>
+</tr>
+<tr>
+<td>WMI providers</td>
+<td>Objects that monitor events/data related to a specific object.</td>
+</tr>
+<tr>
+<td>Classes</td>
+<td>These are used by the WMI providers to pass data to the WMI service.</td>
+</tr>
+<tr>
+<td>Methods</td>
+<td>These are attached to classes and allow actions to be performed. For example, methods can be used to start/stop processes on remote machines.</td>
+</tr>
+<tr>
+<td>WMI repository</td>
+<td>A database that stores all static data related to WMI.</td>
+</tr>
+<tr>
+<td>CIM Object Manager</td>
+<td>The system that requests data from WMI providers and returns it to the application requesting it.</td>
+</tr>
+<tr>
+<td>WMI API</td>
+<td>Enables applications to access the WMI infrastructure.</td>
+</tr>
+<tr>
+<td>WMI Consumer</td>
+<td>Sends queries to objects via the CIM Object Manager.</td>
+</tr>
+</tbody>
+</table>
+<p>Some of the uses for WMI are:</p>
+<ul>
+<li>Status information for local/remote systems</li>
+<li>Configuring security settings on remote machines/applications</li>
+<li>Setting and changing user and group permissions</li>
+<li>Setting/modifying system properties</li>
+<li>Code execution</li>
+<li>Scheduling processes</li>
+<li>Setting up logging</li>
+</ul>
+<p>These tasks can all be performed using a combination of PowerShell and the WMI Command-Line Interface (WMIC). WMI can be run via the Windows command prompt by typing <code>WMIC</code> to open an interactive shell or by running a command directly such as <code>wmic computersystem get name</code> to get the hostname. We can view a listing of WMIC commands and aliases by typing <code>WMIC /?</code>.</p>
+<pre><code class="lang-cmd-session">C:\htb&gt; wmic /?
+
+WMIC <span class="hljs-keyword">is</span> deprecated.
+
+[<span class="hljs-keyword">global</span> switches] <span class="hljs-symbol">&lt;command&gt;</span>
+
+The following <span class="hljs-keyword">global</span> switches are available:
+/NAMESPACE           Path <span class="hljs-keyword">for</span> the namespace the alias operate against.
+/ROLE                Path <span class="hljs-keyword">for</span> the role containing the alias definitions.
+/NODE                Servers the alias will operate against.
+/IMPLEVEL            Client impersonation level.
+/AUTHLEVEL           Client authentication level.
+/LOCALE              Language id the client should use.
+/PRIVILEGES          Enable <span class="hljs-built_in">or</span> disable <span class="hljs-keyword">all</span> privileges.
+/TRACE               Outputs debugging information <span class="hljs-keyword">to</span> stderr.
+/RECORD              Logs <span class="hljs-keyword">all</span> <span class="hljs-built_in">input</span> commands <span class="hljs-built_in">and</span> output.
+/INTERACTIVE         Sets <span class="hljs-built_in">or</span> resets the interactive <span class="hljs-keyword">mode</span>.
+/FAILFAST            Sets <span class="hljs-built_in">or</span> resets the FailFast <span class="hljs-keyword">mode</span>.
+/USER                User <span class="hljs-keyword">to</span> <span class="hljs-keyword">be</span> used during the session.
+/PASSWORD            Password <span class="hljs-keyword">to</span> <span class="hljs-keyword">be</span> used <span class="hljs-keyword">for</span> session login.
+/OUTPUT              Specifies the <span class="hljs-keyword">mode</span> <span class="hljs-keyword">for</span> output redirection.
+/APPEND              Specifies the <span class="hljs-keyword">mode</span> <span class="hljs-keyword">for</span> output redirection.
+/AGGREGATE           Sets <span class="hljs-built_in">or</span> resets aggregate <span class="hljs-keyword">mode</span>.
+/AUTHORITY           Specifies the &lt;authority <span class="hljs-built_in">type</span>&gt; <span class="hljs-keyword">for</span> the connection.
+/?[:&lt;BRIEF|FULL&gt;]    Usage information.
+
+For more information <span class="hljs-keyword">on</span> <span class="hljs-keyword">a</span> specific <span class="hljs-keyword">global</span> switch, <span class="hljs-built_in">type</span>: switch-name /?
+
+Press any key <span class="hljs-keyword">to</span> <span class="hljs-keyword">continue</span>, <span class="hljs-built_in">or</span> press the ESCAPE key <span class="hljs-keyword">to</span> <span class="hljs-keyword">stop</span>
+</code></pre>
+<p>The following command example lists information about the operating system.</p>
+<pre><code class="lang-cmd-session"><span class="hljs-keyword">C</span>:\htb&gt; wmic os list brief
+
+BuildNumber  Organization  RegisteredUser  SerialNumber             SystemDirectory      <span class="hljs-keyword">Version</span>
+<span class="hljs-number">19041</span>                      Owner           <span class="hljs-number">00123</span><span class="hljs-number">-00123</span><span class="hljs-number">-00123</span>-AAOEM  <span class="hljs-keyword">C</span>:\Windows\system32  <span class="hljs-number">10.0</span><span class="hljs-number">.19041</span>
+</code></pre>
+<p>WMIC uses aliases and associated verbs, adverbs, and switches. The above command example uses <code>LIST</code> to show data and the adverb <code>BRIEF</code> to provide just the core set of properties. An in-depth listing of verbs, switches, and adverbs is available <a href="https://docs.microsoft.com/en-us/windows/win32/wmisdk/wmic">here</a>. WMI can be used with PowerShell by using the <code>Get-WmiObject</code> <a href="https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.management/get-wmiobject?view=powershell-5.1">module</a>. This module is used to get instances of WMI classes or information about available classes. This module can be used against local or remote machines.</p>
+<p>Here we can get information about the operating system.</p>
+<pre><code class="lang-powershell-session">PS <span class="hljs-keyword">C</span>:\htb&gt; <span class="hljs-keyword">Get</span>-WmiObject -Class Win32_OperatingSystem | select SystemDirectory,BuildNumber,SerialNumber,<span class="hljs-keyword">Version</span> | ft
+
+SystemDirectory     BuildNumber SerialNumber            <span class="hljs-keyword">Version</span>
+---------------     ----------- ------------            -------
+<span class="hljs-keyword">C</span>:\Windows\system32 <span class="hljs-number">19041</span>       <span class="hljs-number">00123</span><span class="hljs-number">-00123</span><span class="hljs-number">-00123</span>-AAOEM <span class="hljs-number">10.0</span><span class="hljs-number">.19041</span>
+</code></pre>
+<p>We can also use the <code>Invoke-WmiMethod</code> <a href="https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.management/invoke-wmimethod?view=powershell-5.1">module</a>, which is used to call the methods of WMI objects. A simple example is renaming a file. We can see that the command completed properly because the <code>ReturnValue</code> is set to 0.</p>
+<pre><code class="lang-powershell-session">PS <span class="hljs-string">C:</span>\htb&gt; Invoke-WmiMethod -Path <span class="hljs-string">"CIM_DataFile.Name='C:\users\public\spns.csv'"</span> -Name Rename -ArgumentList <span class="hljs-string">"C:\Users\Public\kerberoasted_users.csv"</span>
+
+
+<span class="hljs-string">__GENUS          :</span> <span class="hljs-number">2</span>
+<span class="hljs-string">__CLASS          :</span> __PARAMETERS
+<span class="hljs-string">__SUPERCLASS     :</span>
+<span class="hljs-string">__DYNASTY        :</span> __PARAMETERS
+<span class="hljs-string">__RELPATH        :</span>
+<span class="hljs-string">__PROPERTY_COUNT :</span> <span class="hljs-number">1</span>
+<span class="hljs-string">__DERIVATION     :</span> {}
+<span class="hljs-string">__SERVER         :</span>
+<span class="hljs-string">__NAMESPACE      :</span>
+<span class="hljs-string">__PATH           :</span>
+<span class="hljs-string">ReturnValue      :</span> <span class="hljs-number">0</span>
+<span class="hljs-string">PSComputerName   :</span>
+</code></pre>
+<p>This section provides a brief overview of <code>WMI</code>, <code>WMIC</code>, and combining <code>WMIC</code> and <code>PowerShell</code>. <code>WMI</code> has a wide variety of uses for both blue team and red team operators. Later sections of this course will show some ways that <code>WMI</code> can be leveraged offensively for both enumeration and lateral movement.</p>
+<hr>
+<h2 id="microsoft-management-console-mmc-">Microsoft Management Console (MMC)</h2>
+<hr>
+<p>The MMC can be used to group snap-ins, or administrative tools, to manage hardware, software, and network components within a Windows host. It has been around since Windows Server 2000 and runs on all Windows versions. We can also use MMC to create custom tools and distribute them to users. MMC works with the concept of snap-ins, allowing administrators to create a customized console with only the administrative tools needed to manage several services. These snap-ins can be added to manage both local and remote systems.</p>
+<p>We can open MMC by just typing <code>mmc</code> in the Start menu. When we open MMC for the first time, it will be blank.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/49/MMC.png" alt="Console window with no items displayed, showing Console Root and Actions pane."></p>
+<p>From here, we can browse to File --&gt; <code>Add or Remove Snap-ins</code>, and begin customizing our administrative console.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/49/MMC_add_remove.png" alt="Add or Remove Snap-ins window showing available snap-ins like ActiveX Control and selected snap-ins as Console Root."></p>
+<p>As we begin adding snap-ins, we will be asked if we want to add the snap-in to manage just the local computer or if it will be used to manage another computer on the network.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/49/MMC_services.png" alt="Services snap-in selection window with options to manage local or another computer."></p>
+<p>Once we have finished adding snap-ins, they will appear on the left-hand side of MMC. From here, we can save the set of snap-ins as a .msc file, so they will all be loaded the next time we open MMC. By default, they are saved in the Windows Administrative Tools directory under the Start menu. Next time we open MMC, we can choose to load any of the views that we have created.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/49/saved_msc.png" alt="Open dialog showing Windows Administrative Tools folder with management.msc file."></p>
+<p>\</p>
+<hr>
+<h2 id="windows-subsystem-for-linux-wsl-">Windows Subsystem for Linux (WSL)</h2>
+<hr>
+<p><a href="https://docs.microsoft.com/en-us/windows/wsl/">WSL</a> is a feature that allows Linux binaries to be run natively on Windows 10 and Windows Server 2019. It was originally intended for developers who needed to run Bash, Ruby, and native Linux command-line tools such as <code>sed</code>, <code>awk</code>, <code>grep</code>, etc., directly on their Windows workstation. The second version of WSL, released in May 2019, introduced a real Linux kernel utilizing a subset of Hyper-V features.</p>
+<p>WSL can be installed by running the PowerShell command <code>Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux</code> as an Administrator. Once this feature is enabled, we can either download a Linux distro from the Microsoft Store and install it or manually download the Linux distro of our choice and unpack and install it from the command line.</p>
+<p>WSL installs an application called <code>Bash.exe</code>, which can be run by merely typing <code>bash</code> into a Windows console to spawn a Bash shell. We have the full look and feel of a Linux host from this shell, including the standard Linux directory structure.</p>
+<pre><code class="lang-powershell-session">PS <span class="hljs-symbol">C:</span>\htb&gt; ls /
+
+bin dev home <span class="hljs-class"><span class="hljs-keyword">lib</span> <span class="hljs-title">lLib64</span> <span class="hljs-title">media</span> <span class="hljs-title">opt</span> <span class="hljs-title">root</span> <span class="hljs-title">sbin</span> <span class="hljs-title">srv</span> <span class="hljs-title">tmp</span> <span class="hljs-title">var</span></span>
+boot etc init <span class="hljs-number">1</span>lib32 Libx32 mnt proc run Snap sys usr
+</code></pre>
+<p>We can access the C$ volume and other volumes on the host operating system via the <code>mnt</code> directory, making the transition from the WSL host and the Windows host OS seamless. Once in this bash shell, we can interact with WSL as we would interact with any Linux-based operating system: running commands, installing updates/packages, etc.</p>
+<pre><code class="lang-powershell-session"><span class="hljs-selector-tag">PS</span> <span class="hljs-selector-tag">C</span>:\<span class="hljs-selector-tag">htb</span>&gt; <span class="hljs-selector-tag">uname</span> <span class="hljs-selector-tag">-a</span>
+
+<span class="hljs-selector-tag">Linux</span> <span class="hljs-selector-tag">WS01</span> <span class="hljs-selector-tag">4</span><span class="hljs-selector-class">.4</span><span class="hljs-selector-class">.0-18362-Microsoft</span> <span class="hljs-selector-id">#476-Microsoft</span> <span class="hljs-selector-tag">Frit</span> <span class="hljs-selector-tag">Nov</span> <span class="hljs-selector-tag">01</span> <span class="hljs-selector-tag">16</span><span class="hljs-selector-pseudo">:53</span><span class="hljs-selector-pseudo">:00</span>
+<span class="hljs-selector-tag">PST</span> <span class="hljs-selector-tag">2019</span> <span class="hljs-selector-tag">x86_64</span> <span class="hljs-selector-tag">x86</span> <span class="hljs-selector-tag">_64</span> <span class="hljs-selector-tag">x86_64</span> <span class="hljs-selector-tag">GNU</span>/<span class="hljs-selector-tag">Linux</span>
+</code></pre>
+<p>\</p>
+<hr>
+<h2 id="desktop-experience-vs-server-core">Desktop Experience vs. Server Core</h2>
+<hr>
+<p><a href="https://docs.microsoft.com/en-us/windows-server/administration/server-core/what-is-server-core">Windows Server Core</a> was first released with Windows Server 2008 as a minimalistic Server environment only containing key Server functionality. As a result, Server Core has lower management requirements, a smaller attack surface, and uses less disk space and memory than its Desktop Experience (GUI) counterpart. In Server Core, all configuration and maintenance tasks are performed via the command-line, PowerShell, or remote management with MMC or Remote Server Administration Tools (RSAT).</p>
+<p>While Server Core aims to have a smaller footprint by lacking a GUI, some graphical programs are still supported, such as Registry Editor, Notepad, System Information, Windows Installer, Task Manager, and PowerShell. It also supports some Sysinternals suite tools such as Active Directory Explorer, Process Explorer, Process Monitor, and TCPView.</p>
+<p>As of Windows Server 2019, Server Core or Desktop Experience must be selected at installation, and neither can be rolled back (i.e., converting Server Core to Desktop Experience). Once installed, the initial setup for Server Core can be done via <code>Sconfig</code>, which is a text-based interface (actually a VBScript executed by WScript). <code>Sconfig</code> is used for performing a variety of common commands such as configuring networking, checking for/installing Windows updates, account management, configuring remote management, activating Windows, and more.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/49/sconfig.png" alt="Command prompt showing server configuration options, including domain, computer name, remote management, and update settings."></p>
+<p>Certain server applications cannot run on Server Core, including Microsoft Server Virtual Machine Manager 2019 (SCVMM), System Center Data Protection Manager 2019, SharePoint Server 2019, Project Server 2019.</p>
+<p>In summary, Server Core is lighter weight and less resource-intensive but has a steeper learning curve and can be more difficult to manage. It also has some limitations, such as performing management tasks using certain GUI programs.</p>
+<p>In any environment, the determination between using Desktop Experience or Server Core for a server installation should be made by both the business need and intended use of the server and the skill level of the administrators responsible for maintaining it. The following table shows some of the applications available on Server Core vs. Desktop Experience. This is a list of common applications and not an exhaustive list.</p>
+<table>
+<thead>
+<tr>
+<th><strong>Application</strong></th>
+<th><strong>Server Core</strong></th>
+<th><strong>Desktop Experience</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Command prompt</td>
+<td>Available</td>
+<td>Available</td>
+</tr>
+<tr>
+<td>Windows PowerShell/ Microsoft .NET</td>
+<td>Available</td>
+<td>Available</td>
+</tr>
+<tr>
+<td>Regedit</td>
+<td>Available</td>
+<td>Available</td>
+</tr>
+<tr>
+<td>Diskmgmt.msc</td>
+<td>Not Available</td>
+<td>Available</td>
+</tr>
+<tr>
+<td>Server Manager</td>
+<td>Not Available</td>
+<td>Available</td>
+</tr>
+<tr>
+<td>Mmc.exe</td>
+<td>Not Available</td>
+<td>Available</td>
+</tr>
+<tr>
+<td>Eventvwr</td>
+<td>Not Available</td>
+<td>Available</td>
+</tr>
+<tr>
+<td>Services.msc</td>
+<td>Not Available</td>
+<td>Available</td>
+</tr>
+<tr>
+<td>Control Panel</td>
+<td>Not Available</td>
+<td>Available</td>
+</tr>
+<tr>
+<td>Windows Explorer</td>
+<td>Not Available</td>
+<td>Available</td>
+</tr>
+<tr>
+<td>Taskmgr</td>
+<td>Available</td>
+<td>Available</td>
+</tr>
+<tr>
+<td>Internet Explorer or Edge</td>
+<td>Not Available</td>
+<td>Available</td>
+</tr>
+<tr>
+<td>Remote Desktop Services</td>
+<td>Available</td>
+<td>Available</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="windows-security">Windows Security</h2>
+<hr>
+<p>Security is a critical topic in Windows operating systems. Windows systems have many moving parts that present a vast attack surface. Due to the many built-in applications, features, and layers of settings, Windows systems can be easily misconfigured, thus opening them up to attack even if they are fully patched.</p>
+<p>It has many built-in features that can be abused and has suffered from a wide variety of critical vulnerabilities, resulting in widely used and very effective remote and local exploits.</p>
+<p>Microsoft has improved upon Windows security over the years. As our world&#39;s interconnectedness continues to expand and attackers become more sophisticated, Microsoft has continued to add new features that can be used by systems administrators to harden systems and actively block and detect attempts at intrusion and misuse.</p>
+<p>Windows follows certain security principles to control access and authentication within the system. These principles apply to various entities, such as users, networked computers, threads, and processes, which can be authorized for specific actions. The security model is designed to minimize the risk of unauthorized access, making it more challenging for attackers or malicious software to exploit the system.</p>
+<hr>
+<h3 id="security-identifier-sid-">Security Identifier (SID)</h3>
+<p>Each of the security principals on the system has a unique security identifier (SID). The system automatically generates SIDs. This means that even if, for example, we have two identical users on the system, Windows can distinguish the two and their rights based on their SIDs. SIDs are string values with different lengths, which are stored in the security database. These SIDs are added to the user&#39;s access token to identify all actions that the user is authorized to take.</p>
+<p>A SID consists of the Identifier Authority and the Relative ID (RID). In an Active Directory (AD) domain environment, the SID also includes the domain SID.</p>
+<pre><code class="lang-powershell-session">PS C:\htb&gt; whoami /user
+
+<span class="hljs-section">USER INFORMATION
+----------------</span>
+
+User Name           SID
+=================== =============================================
+ws01\bob S-1-5-21-674899381-4069889467-2080702030-1002
+</code></pre>
+<p>The SID is broken down into this pattern.</p>
+<pre><code class="lang-powershell-session">(<span class="hljs-name">SID</span>)-(<span class="hljs-name">revision</span> level)-(<span class="hljs-name">identifier-authority</span>)-(<span class="hljs-name">subauthority1</span>)-(<span class="hljs-name">subauthority2</span>)-(<span class="hljs-name">etc</span>)
+</code></pre>
+<p>Let&#39;s break down the SID piece by piece.</p>
+<table>
+<thead>
+<tr>
+<th><strong>Number</strong></th>
+<th><strong>Meaning</strong></th>
+<th><strong>Description</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>S</td>
+<td>SID</td>
+<td>Identifies the string as a SID.</td>
+</tr>
+<tr>
+<td>1</td>
+<td>Revision Level</td>
+<td>To date, this has never changed and has always been <code>1</code>.</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Identifier-authority</td>
+<td>A 48-bit string that identifies the authority (the computer or network) that created the SID.</td>
+</tr>
+<tr>
+<td>21</td>
+<td>Subauthority1</td>
+<td>This is a variable number that identifies the user&#39;s relation or group described by the SID to the authority that created it. It tells us in what order this authority created the user&#39;s account.</td>
+</tr>
+<tr>
+<td>674899381-4069889467-2080702030</td>
+<td>Subauthority2</td>
+<td>Tells us which computer (or domain) created the number</td>
+</tr>
+<tr>
+<td>1002</td>
+<td>Subauthority3</td>
+<td>The RID that distinguishes one account from another. Tells us whether this user is a normal user, a guest, an administrator, or part of some other group</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h3 id="security-accounts-manager-sam-and-access-control-entries-ace-">Security Accounts Manager (SAM) and Access Control Entries (ACE)</h3>
+<p>SAM grants rights to a network to execute specific processes.</p>
+<p>The access rights themselves are managed by Access Control Entries (ACE) in Access Control Lists (ACL). The ACLs contain ACEs that define which users, groups, or processes have access to a file or to execute a process, for example.</p>
+<p>The permissions to access a securable object are given by the security descriptor, classified into two types of ACLs: the <code>Discretionary Access Control List (DACL)</code> or <code>System Access Control List (SACL)</code>. Every thread and process started or initiated by a user goes through an authorization process. An integral part of this process is access tokens, validated by the Local Security Authority (LSA). In addition to the SID, these access tokens contain other security-relevant information. Understanding these functionalities is an essential part of learning how to use and work around these security mechanisms during the privilege escalation phase.</p>
+<hr>
+<h3 id="user-account-control-uac-">User Account Control (UAC)</h3>
+<p><a href="https://docs.microsoft.com/en-us/windows/security/identity-protection/user-account-control/how-user-account-control-works">User Account Control (UAC)</a> is a security feature in Windows to prevent malware from running or manipulating processes that could damage the computer or its contents. There is the Admin Approval Mode in UAC, which is designed to prevent unwanted software from being installed without the administrator&#39;s knowledge or to prevent system-wide changes from being made. Surely you have already seen the consent prompt if you have installed a specific software, and your system has asked for confirmation if you want to have it installed. Since the installation requires administrator rights, a window pops up, asking you if you want to confirm the installation. With a standard user who has no rights for the installation, execution will be denied, or you will be asked for the administrator password. This consent prompt interrupts the execution of scripts or binaries that malware or attackers try to execute until the user enters the password or confirms execution. To understand how UAC works, we need to know how it is structured and how it works, and what triggers the consent prompt. The following diagram, adapted from the source <a href="https://docs.microsoft.com/en-us/windows/security/identity-protection/user-account-control/how-user-account-control-works">here</a>, illustrates how UAC works.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/49/uacarchitecture1.png" alt="Flowchart of user and system interactions for elevation prompts, remote management, and UAC settings."></p>
+<hr>
+<h3 id="registry">Registry</h3>
+<p>The <a href="https://en.wikipedia.org/wiki/Windows_Registry">Registry</a> is a hierarchical database in Windows critical for the operating system. It stores low-level settings for the Windows operating system and applications that choose to use it. It is divided into computer-specific and user-specific data. We can open the Registry Editor by typing <code>regedit</code> from the command line or Windows search bar.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/49/regedit.png" alt="Registry Editor showing HKEY\_LOCAL\_MACHINE with Analysis DWORD set to 0."></p>
+<p>The tree-structure consists of main folders (root keys) in which subfolders (subkeys) with their entries/files (values) are located. There are 11 different types of values that can be entered in a subkey.</p>
+<table>
+<thead>
+<tr>
+<th><strong>Value</strong></th>
+<th><strong>Type</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>REG_BINARY</td>
+<td>Binary data in any form.</td>
+</tr>
+<tr>
+<td>REG_DWORD</td>
+<td>A 32-bit number.</td>
+</tr>
+<tr>
+<td>REG_DWORD_LITTLE_ENDIAN</td>
+<td>A 32-bit number in little-endian format. Windows is designed to run on little-endian computer architectures. Therefore, this value is defined as REG_DWORD in the Windows header files.</td>
+</tr>
+<tr>
+<td>REG_DWORD_BIG_ENDIAN</td>
+<td>A 32-bit number in big-endian format. Some UNIX systems support big-endian architectures.</td>
+</tr>
+<tr>
+<td>REG_EXPAND_SZ</td>
+<td>A null-terminated string that contains unexpanded references to environment variables (for example, &quot;%PATH%&quot;). It will be a Unicode or ANSI string depending on whether you use the Unicode or ANSI functions. To expand the environment variable references, use the <a href="https://docs.microsoft.com/en-us/windows/win32/api/processenv/nf-processenv-expandenvironmentstringsa"><strong>ExpandEnvironmentStrings</strong></a> function.</td>
+</tr>
+<tr>
+<td>REG_LINK</td>
+<td>A null-terminated Unicode string containing the target path of a symbolic link created by calling the <a href="https://docs.microsoft.com/en-us/windows/desktop/api/Winreg/nf-winreg-regcreatekeyexa"><strong>RegCreateKeyEx</strong></a> function with REG_OPTION_CREATE_LINK.</td>
+</tr>
+<tr>
+<td>REG_MULTI_SZ</td>
+<td>A sequence of null-terminated strings, terminated by an empty string (\0). The following is an example: <em>String1</em>\&#x30;<em>&#x53;tring2</em>\&#x30;<em>&#x53;tring3</em>\&#x30;<em>&#x4C;astString</em>\0\0 The first \0 terminates the first string, the second to the last \0 terminates the last string, and the final \0 terminates the sequence. Note that the final terminator must be factored into the length of the string.</td>
+</tr>
+<tr>
+<td>REG_NONE</td>
+<td>No defined value type.</td>
+</tr>
+<tr>
+<td>REG_QWORD</td>
+<td>A 64-bit number.</td>
+</tr>
+<tr>
+<td>REG_QWORD_LITTLE_ENDIAN</td>
+<td>A 64-bit number in little-endian format. Windows is designed to run on little-endian computer architectures. Therefore, this value is defined as REG_QWORD in the Windows header files.</td>
+</tr>
+<tr>
+<td>REG_SZ</td>
+<td>A null-terminated string. This will be either a Unicode or an ANSI string, depending on whether you use the Unicode or ANSI functions.</td>
+</tr>
+</tbody>
+</table>
+<p>Source: <a href="https://docs.microsoft.com/en-us/windows/win32/sysinfo/registry-value-types">https://docs.microsoft.com/en-us/windows/win32/sysinfo/registry-value-types</a></p>
+<p>Each folder under <code>Computer</code> is a key. The root keys all start with <code>HKEY</code>. A key such as <code>HKEY-LOCAL-MACHINE</code> is abbreviated to <code>HKLM</code>. HKLM contains all settings that are relevant to the local system. This root key contains six subkeys like <code>SAM</code>, <code>SECURITY</code>, <code>SYSTEM</code>, <code>SOFTWARE</code>, <code>HARDWARE</code>, and <code>BCD</code>, loaded into memory at boot time (except <code>HARDWARE</code> which is dynamically loaded).</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/49/regedit2.png" alt="Registry Editor showing HKEY\_LOCAL\_MACHINE with Analysis DWORD set to 0."></p>
+<p>The entire system registry is stored in several files on the operating system. You can find these under <code>C:\Windows\System32\Config\</code>.</p>
+<pre><code class="lang-powershell-session">PS C:\htb&gt; ls
+
+    Directory: C:\Windows\system32\config
+
+Mode                 LastWriteTime         Length Name
+<span class="hljs-comment">----                 -------------         ------ ----</span>
+d<span class="hljs-comment">-----         12/7/2019   4:14 AM                Journal</span>
+d<span class="hljs-comment">-----         12/7/2019   4:14 AM                RegBack</span>
+d<span class="hljs-comment">-----         12/7/2019   4:14 AM                systemprofile</span>
+d<span class="hljs-comment">-----         8/12/2020   1:43 AM                TxR</span>
+-<span class="hljs-keyword">a</span><span class="hljs-comment">----         8/13/2020   6:02 PM        1048576 BBI</span>
+-<span class="hljs-keyword">a</span><span class="hljs-comment">----         6/25/2020   4:36 PM          28672 BCD-Template</span>
+-<span class="hljs-keyword">a</span><span class="hljs-comment">----         8/30/2020  12:17 PM       33816576 COMPONENTS</span>
+-<span class="hljs-keyword">a</span><span class="hljs-comment">----         8/13/2020   6:02 PM         524288 DEFAULT</span>
+-<span class="hljs-keyword">a</span><span class="hljs-comment">----         8/26/2020   7:51 PM        4603904 DRIVERS</span>
+-<span class="hljs-keyword">a</span><span class="hljs-comment">----         6/25/2020   3:37 PM          32768 ELAM</span>
+-<span class="hljs-keyword">a</span><span class="hljs-comment">----         8/13/2020   6:02 PM          65536 SAM</span>
+-<span class="hljs-keyword">a</span><span class="hljs-comment">----         8/13/2020   6:02 PM          65536 SECURITY</span>
+-<span class="hljs-keyword">a</span><span class="hljs-comment">----         8/13/2020   6:02 PM       87818240 SOFTWARE</span>
+-<span class="hljs-keyword">a</span><span class="hljs-comment">----         8/13/2020   6:02 PM       17039360 SYSTEM</span>
+</code></pre>
+<p>The user-specific registry hive (HKCU) is stored in the user folder (i.e., <code>C:\Users\&lt;USERNAME&gt;\Ntuser.dat</code>).</p>
+<pre><code class="lang-powershell-session">PS C:\htb&gt; gci -Hidden
+
+    Directory: C:\Users\bob
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+d--h--         <span class="hljs-number">6/25/2020</span>   <span class="hljs-number">5</span>:<span class="hljs-number">12</span> PM                AppData
+d--hsl         <span class="hljs-number">6/25/2020</span>   <span class="hljs-number">5</span>:<span class="hljs-number">12</span> PM                Application Data
+d--hsl         <span class="hljs-number">6/25/2020</span>   <span class="hljs-number">5</span>:<span class="hljs-number">12</span> PM                Cookies
+d--hsl         <span class="hljs-number">6/25/2020</span>   <span class="hljs-number">5</span>:<span class="hljs-number">12</span> PM                Local Settings
+d--h--         <span class="hljs-number">6/25/2020</span>   <span class="hljs-number">5</span>:<span class="hljs-number">12</span> PM                MicrosoftEdgeBackups
+d--hsl         <span class="hljs-number">6/25/2020</span>   <span class="hljs-number">5</span>:<span class="hljs-number">12</span> PM                My Documents
+d--hsl         <span class="hljs-number">6/25/2020</span>   <span class="hljs-number">5</span>:<span class="hljs-number">12</span> PM                NetHood
+d--hsl         <span class="hljs-number">6/25/2020</span>   <span class="hljs-number">5</span>:<span class="hljs-number">12</span> PM                PrintHood
+d--hsl         <span class="hljs-number">6/25/2020</span>   <span class="hljs-number">5</span>:<span class="hljs-number">12</span> PM                Recent
+d--hsl         <span class="hljs-number">6/25/2020</span>   <span class="hljs-number">5</span>:<span class="hljs-number">12</span> PM                SendTo
+d--hsl         <span class="hljs-number">6/25/2020</span>   <span class="hljs-number">5</span>:<span class="hljs-number">12</span> PM                Start Menu
+d--hsl         <span class="hljs-number">6/25/2020</span>   <span class="hljs-number">5</span>:<span class="hljs-number">12</span> PM                Templates
+-a-h--         <span class="hljs-number">8/13/2020</span>   <span class="hljs-number">6</span>:<span class="hljs-number">01</span> PM        <span class="hljs-number">2883584</span> NTUSER.DAT
+-a-hs-         <span class="hljs-number">6/25/2020</span>   <span class="hljs-number">5</span>:<span class="hljs-number">12</span> PM         <span class="hljs-number">524288</span> ntuser.dat.LOG1
+-a-hs-         <span class="hljs-number">6/25/2020</span>   <span class="hljs-number">5</span>:<span class="hljs-number">12</span> PM        <span class="hljs-number">1011712</span> ntuser.dat.LOG2
+-a-hs-         <span class="hljs-number">8/17/2020</span>   <span class="hljs-number">5</span>:<span class="hljs-number">46</span> PM        <span class="hljs-number">1048576</span> NTUSER.DAT{<span class="hljs-number">53</span>b<span class="hljs-number">39e87-18c4</span>-<span class="hljs-number">11</span>ea-a811-<span class="hljs-number">000d</span>3aa4692b}.TxR.<span class="hljs-number">0</span>.regtrans-ms
+-a-hs-         <span class="hljs-number">8/17/2020</span>  <span class="hljs-number">12</span>:<span class="hljs-number">13</span> PM        <span class="hljs-number">1048576</span> NTUSER.DAT{<span class="hljs-number">53</span>b<span class="hljs-number">39e87-18c4</span>-<span class="hljs-number">11</span>ea-a811-<span class="hljs-number">000d</span>3aa4692b}.TxR.<span class="hljs-number">1</span>.regtrans-ms
+-a-hs-         <span class="hljs-number">8/17/2020</span>  <span class="hljs-number">12</span>:<span class="hljs-number">13</span> PM        <span class="hljs-number">1048576</span> NTUSER.DAT{<span class="hljs-number">53</span>b<span class="hljs-number">39e87-18c4</span>-<span class="hljs-number">11</span>ea-a811-<span class="hljs-number">000d</span>3aa4692b}.TxR.<span class="hljs-number">2</span>.regtrans-ms
+-a-hs-         <span class="hljs-number">8/17/2020</span>   <span class="hljs-number">5</span>:<span class="hljs-number">46</span> PM          <span class="hljs-number">65536</span> NTUSER.DAT{<span class="hljs-number">53</span>b<span class="hljs-number">39e87-18c4</span>-<span class="hljs-number">11</span>ea-a811-<span class="hljs-number">000d</span>3aa4692b}.TxR.blf
+-a-hs-         <span class="hljs-number">6/25/2020</span>   <span class="hljs-number">5</span>:<span class="hljs-number">15</span> PM          <span class="hljs-number">65536</span> NTUSER.DAT{<span class="hljs-number">53</span>b<span class="hljs-number">39e88-18c4</span>-<span class="hljs-number">11</span>ea-a811-<span class="hljs-number">000d</span>3aa4692b}.TM.blf
+-a-hs-         <span class="hljs-number">6/25/2020</span>   <span class="hljs-number">5</span>:<span class="hljs-number">12</span> PM         <span class="hljs-number">524288</span> NTUSER.DAT{<span class="hljs-number">53</span>b<span class="hljs-number">39e88-18c4</span>-<span class="hljs-number">11</span>ea-a811-<span class="hljs-number">000d</span>3aa4692b}.TMContainer<span class="hljs-number">000000000</span>
+                                                  <span class="hljs-number">00000000001</span>.regtrans-ms
+-a-hs-         <span class="hljs-number">6/25/2020</span>   <span class="hljs-number">5</span>:<span class="hljs-number">12</span> PM         <span class="hljs-number">524288</span> NTUSER.DAT{<span class="hljs-number">53</span>b<span class="hljs-number">39e88-18c4</span>-<span class="hljs-number">11</span>ea-a811-<span class="hljs-number">000d</span>3aa4692b}.TMContainer<span class="hljs-number">000000000</span>
+                                                  <span class="hljs-number">00000000002</span>.regtrans-ms
+---hs-         <span class="hljs-number">6/25/2020</span>   <span class="hljs-number">5</span>:<span class="hljs-number">12</span> PM             <span class="hljs-number">20</span> ntuser.ini
+</code></pre>
+<hr>
+<h3 id="run-and-runonce-registry-keys">Run and RunOnce Registry Keys</h3>
+<p>There are also so-called registry hives, which contain a logical group of keys, subkeys, and values to support software and files loaded into memory when the operating system is started or a user logs in. These hives are useful for maintaining access to the system. These are called <a href="https://docs.microsoft.com/en-us/windows/win32/setupapi/run-and-runonce-registry-keys">Run and RunOnce registry keys</a>.</p>
+<p>The Windows registry includes the following four keys:</p>
+<pre><code class="lang-powershell-session">HKEY_LOCAL_MACHINE<span class="hljs-symbol">\S</span>oftware<span class="hljs-symbol">\M</span>icrosoft<span class="hljs-symbol">\W</span>indows<span class="hljs-symbol">\C</span>urrentVersion<span class="hljs-symbol">\R</span>un
+HKEY_CURRENT_USER<span class="hljs-symbol">\S</span>oftware<span class="hljs-symbol">\M</span>icrosoft<span class="hljs-symbol">\W</span>indows<span class="hljs-symbol">\C</span>urrentVersion<span class="hljs-symbol">\R</span>un
+HKEY_LOCAL_MACHINE<span class="hljs-symbol">\S</span>oftware<span class="hljs-symbol">\M</span>icrosoft<span class="hljs-symbol">\W</span>indows<span class="hljs-symbol">\C</span>urrentVersion<span class="hljs-symbol">\R</span>unOnce
+HKEY_CURRENT_USER<span class="hljs-symbol">\S</span>oftware<span class="hljs-symbol">\M</span>icrosoft<span class="hljs-symbol">\W</span>indows<span class="hljs-symbol">\C</span>urrentVersion<span class="hljs-symbol">\R</span>unOnce
+</code></pre>
+<p>Here is an example of the <code>HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Run</code> key while logged in to a system.</p>
+<pre><code class="lang-powershell-session">PS C:<span class="hljs-symbol">\h</span>tb&gt; reg query HKEY_LOCAL_MACHINE<span class="hljs-symbol">\S</span>oftware<span class="hljs-symbol">\M</span>icrosoft<span class="hljs-symbol">\W</span>indows<span class="hljs-symbol">\C</span>urrentVersion<span class="hljs-symbol">\R</span>un
+
+HKEY_LOCAL_MACHINE<span class="hljs-symbol">\S</span>oftware<span class="hljs-symbol">\M</span>icrosoft<span class="hljs-symbol">\W</span>indows<span class="hljs-symbol">\C</span>urrentVersion<span class="hljs-symbol">\R</span>un
+    SecurityHealth    REG_EXPAND_SZ    <span class="hljs-variable">%windir%</span><span class="hljs-symbol">\s</span>ystem32<span class="hljs-symbol">\S</span>ecurityHealthSystray.exe
+    RTHDVCPL    REG_SZ    "C:<span class="hljs-symbol">\P</span>rogram Files<span class="hljs-symbol">\R</span>ealtek<span class="hljs-symbol">\A</span>udio<span class="hljs-symbol">\H</span>DA<span class="hljs-symbol">\R</span>tkNGUI64.exe" -s
+    Greenshot    REG_SZ    C:<span class="hljs-symbol">\P</span>rogram Files<span class="hljs-symbol">\G</span>reenshot<span class="hljs-symbol">\G</span>reenshot.exe
+</code></pre>
+<p>Here is an example of the <code>HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run</code> showing applications running under the current user while logged in to a system.</p>
+<pre><code class="lang-powershell-session">PS C:<span class="hljs-symbol">\h</span>tb&gt; reg query HKEY_CURRENT_USER<span class="hljs-symbol">\S</span>oftware<span class="hljs-symbol">\M</span>icrosoft<span class="hljs-symbol">\W</span>indows<span class="hljs-symbol">\C</span>urrentVersion<span class="hljs-symbol">\R</span>un
+
+HKEY_CURRENT_USER<span class="hljs-symbol">\S</span>oftware<span class="hljs-symbol">\M</span>icrosoft<span class="hljs-symbol">\W</span>indows<span class="hljs-symbol">\C</span>urrentVersion<span class="hljs-symbol">\R</span>un
+    OneDrive    REG_SZ    "C:<span class="hljs-symbol">\U</span>sers<span class="hljs-symbol">\b</span>ob<span class="hljs-symbol">\A</span>ppData<span class="hljs-symbol">\L</span>ocal<span class="hljs-symbol">\M</span>icrosoft<span class="hljs-symbol">\O</span>neDrive<span class="hljs-symbol">\O</span>neDrive.exe" /background
+    OPENVPN-GUI    REG_SZ    C:<span class="hljs-symbol">\P</span>rogram Files<span class="hljs-symbol">\O</span>penVPN<span class="hljs-symbol">\b</span>in<span class="hljs-symbol">\o</span>penvpn-gui.exe
+    Docker Desktop    REG_SZ    C:<span class="hljs-symbol">\P</span>rogram Files<span class="hljs-symbol">\D</span>ocker<span class="hljs-symbol">\D</span>ocker<span class="hljs-symbol">\D</span>ocker Desktop.exe
+</code></pre>
+<hr>
+<h3 id="application-whitelisting">Application Whitelisting</h3>
+<p>An application whitelist is a list of approved software applications or executables allowed to be present and run on a system. The goal is to protect the environment from harmful malware and unapproved software that does not align with the specific business needs of an organization. Implementing an enforced whitelist can be a challenge, especially in a large network. An organization should implement a whitelist in audit mode initially to make sure that all necessary applications are whitelisted and not blocked by an error of omission, which can cause more problems than it fixes.</p>
+<p>Blacklisting, in contrast, specifies a list of harmful or disallowed software/applications to block, and all others are allowed to run/be installed. Whitelisting is based on a &quot;zero trust&quot; principle in which all software/applications are deemed &quot;bad&quot; except for those specifically allowed. Maintaining a whitelist generally has less overhead as a system administrator will only need to specify what is allowed and not constantly update a &quot;blacklist&quot; with new malicious applications.</p>
+<p>Whitelisting is recommended by organizations such as <a href="https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-167.pdf">NIST</a>, especially in high-security environments.</p>
+<hr>
+<h3 id="applocker">AppLocker</h3>
+<p><a href="https://docs.microsoft.com/en-us/windows/security/threat-protection/windows-defender-application-control/applocker/applocker-overview">AppLocker</a> is Microsoft&#39;s application whitelisting solution and was first introduced in Windows 7. AppLocker gives system administrators control over which applications and files users can run. It gives granular control over executables, scripts, Windows installer files, DLLs, packaged apps, and packed app installers.</p>
+<p>It allows for creating rules based on file attributes such as the publisher&#39;s name (which can be derived from the digital signature), product name, file name, and version. Rules can also be set up based on file paths and hashes. Rules can be applied to either security groups or individual users, based on the business need. AppLocker can be deployed in audit mode first to test the impact before enforcing all of the rules.</p>
+<hr>
+<h3 id="local-group-policy">Local Group Policy</h3>
+<p>Group Policy allows administrators to set, configure, and adjust a variety of settings. In a domain environment, group policies are pushed down from a Domain Controller onto all domain-joined machines that Group Policy objects (GPOs) are linked to. These settings can also be defined on individual machines using Local Group Policy.</p>
+<p>Group Policy can be configured locally, in both domain environments and non-domain environments. Local Group Policy can be used to tweak certain graphical and network settings that are otherwise not accessible via the Control Panel. It can also be used to lock down an individual computer policy with stringent security settings, such as only allowing certain programs to be installed/run or enforcing strict user account password requirements.</p>
+<p>We can open the Local Group Policy Editor by opening the Start menu and typing <code>gpedit.msc</code>. The editor is split into two categories under Local Computer Policy - <code>Computer Configuration</code> and <code>User Configuration</code>.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/49/Local_GP.png" alt="Local Group Policy Editor showing Administrative Templates under Computer Configuration."></p>
+<p>For example, we can open the Local Computer Policy to enable Credential Guard by enabling the setting <code>Turn On Virtualization Based Security</code>. Credential Guard is a feature in Windows 10 that protects against credential theft attacks by isolating the operating system&#39;s LSA process.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/49/credguard.png" alt="Turn On Virtualization Based Security settings window with options for enabling Secure Boot and DMA Protection."></p>
+<p>We can also enable fine-tuned account auditing and configure AppLocker from the Local Group Policy Editor. It is worth exploring Local Group Policy and learning about the wide variety of ways it can be used to lock down a Windows system.</p>
+<hr>
+<h3 id="windows-defender-antivirus">Windows Defender Antivirus</h3>
+<p>Windows Defender Antivirus (Defender), formerly known as Windows Defender, is built-in antivirus that ships for free with Windows operating systems. It was first released as a downloadable anti-spyware tool for Windows XP and Server 2003. Defender started coming prepackaged as part of the operating system with Windows Vista/Server 2008. The program was renamed to Windows Defender Antivirus with the Windows 10 Creators Update.</p>
+<p>Defender comes with several features such as real-time protection, which protects the device from known threats in real-time and cloud-delivered protection, which works in conjunction with automatic sample submission to upload suspicious files for analysis. When files are submitted to the cloud protection service, they are &quot;locked&quot; to prevent any potentially malicious behavior until the analysis is complete. Another feature is Tamper Protection, which prevents security settings from being changed through the Registry, PowerShell cmdlets, or group policy.</p>
+<p>Windows Defender is managed from the Security Center, from which a variety of additional security features and settings can be enabled and managed.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/49/Defender_sec_center.png" alt="Windows Security dashboard showing status of virus protection off, account protection okay, and firewall off."></p>
+<p>Real-time protection settings can be tweaked to add files, folders, and memory areas to controlled folder access to prevent unauthorized changes. We can also add files or folders to an exclusion list, so they are not scanned. An example would be excluding a folder of tools used for penetration testing from scanning as they will be flagged malicious and quarantined or removed from the system. Controlled folder access is Defender&#39;s built-in Ransomware protection.</p>
+<p>We can use the PowerShell cmdlet <code>Get-MpComputerStatus</code> to check which protection settings are enabled.</p>
+<pre><code class="lang-powershell-session">PS <span class="hljs-keyword">C</span>:\htb&gt; <span class="hljs-keyword">Get</span>-MpComputerStatus | findstr <span class="hljs-string">"True"</span>
+AMServiceEnabled                : <span class="hljs-keyword">True</span>
+AntispywareEnabled              : <span class="hljs-keyword">True</span>
+AntivirusEnabled                : <span class="hljs-keyword">True</span>
+BehaviorMonitorEnabled          : <span class="hljs-keyword">True</span>
+IoavProtectionEnabled           : <span class="hljs-keyword">True</span>
+IsTamperProtected               : <span class="hljs-keyword">True</span>
+NISEnabled                      : <span class="hljs-keyword">True</span>
+OnAccessProtectionEnabled       : <span class="hljs-keyword">True</span>
+RealTimeProtectionEnabled       : <span class="hljs-keyword">True</span>
+</code></pre>
+<p>While no antivirus solution is perfect, Windows Defender does very well in monthly detection rate tests compared to other solutions, even paid ones. Also, since it comes preinstalled as part of the operating system, it does not introduce &quot;bloat&quot; to the system, such as other programs that add browser extensions and trackers. Other products are known to slow down the system due to the way they hook into the operating system.</p>
+<p>Windows Defender is not without its flaws and should be part of a defense-in-depth strategy built around core principles of configuration and patch management, not treated as a silver bullet for protecting our systems. Definitions are updated constantly, and new versions of Windows Defender are built-in to major operating releases such as Windows 10, version 1909, which is the most recent version at the time of writing.</p>
+<p>Windows Defender will pick up payloads from common open-source frameworks such as Metasploit or unaltered versions of tools such as Mimikatz.</p>
+<p><img src="https://academy.hackthebox.com/storage/modules/49/meterp_caught.png" alt="Protection history showing firewalls off and a severe threat detected: Trojan.Win32/Meterpreter.O."></p>
+<p>Though it is becoming increasingly difficult, it is still possible to fully bypass Windows Defender protections enforced by the latest version with the most up-to-date definitions installed.</p>
+<hr>
