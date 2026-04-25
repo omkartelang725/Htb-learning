@@ -1,0 +1,96 @@
+Fundamentals Modules:
+- Setting Up
+- Intro to Academy
+- Getting Started
+- Learning Process
+- Introduction to Information Security
+- Introduction to Networking
+- Network Foundations
+- Linux Fundamentals
+- Introduction to Bash Scripting
+- Windows Fundamentals
+- Introduction to Windows Command Line
+- MacOS Fundamentals
+- Android Fundamentals
+- Introduction to Python 3
+- Introduction to C#
+- Intro to Assembly Language
+- Stack-Based Buffer Overflows on Linux x86
+- Stack-Based Buffer Overflows on Windows x86
+- Introduction to Web Applications
+- Web Requests
+
+Penetration Testing:
+- Introduction to Penetration Testing
+- Pentest in a Nutshell
+- Penetration Testing Process
+- Vulnerability Assessment
+- Using Web Proxies
+- Footprinting
+- Information Gathering - Web Edition
+- Network Enumeration with Nmap
+- DNS Enumeration Using Python ------
+- Introduction to Active Directory
+- Active Directory Enumeration & Attacks
+- Active Directory Hardening - Recon & Initial Access
+- Web Fuzzing
+- Attacking Web Applications with Ffuf
+- SQL Injection Fundamentals
+- SQLMap Essentials
+- Cross-Site Scripting (XSS)
+- Command Injections
+- File Inclusion
+- File Upload Attacks
+- Broken Authentication
+- Login Brute Forcing
+- Hacking WordPress
+- Attacking Common Applications
+- Attacking Common Services
+- Web Attacks
+- Server-side Attacks
+- Session Security
+- Web Service & API Attacks
+- API Attacks
+- Attacking GraphQL
+- Password Attacks
+- Cracking Passwords with Hashcat
+- Linux Privilege Escalation
+- Windows Privilege Escalation
+- File Transfers
+- Using the Metasploit Framework
+- Shells & Payloads
+- Pivoting, Tunneling, and Port Forwarding
+- Attacking Enterprise Networks
+- Wi-Fi Penetration Testing Basics
+- Wi‑Fi Password Cracking Techniques
+- Wired Equivalent Privacy (WEP) Attacks
+- Attacking Wi-Fi Protected Setup (WPS)
+- Brief Intro to Hardware Attacks
+- Bug Bounty Hunting Process
+- Documentation & Reporting
+
+Defensive Security:
+- Intro to Network Traffic Analysis
+- Intermediate Network Traffic Analysis
+- Security Monitoring & SIEM Fundamentals
+- Understanding Log Sources & Investigating with Splunk
+- Windows Event Logs & Finding Evil
+- Detecting Windows Attacks with Splunk
+- YARA & Sigma for SOC Analysts
+- Working with IDS/IPS
+- Incident Handling Process
+- Security Incident Reporting
+- Introduction to Threat Hunting & Hunting With Elastic
+- Introduction to Digital Forensics
+- Introduction to Malware Analysis
+- JavaScript Deobfuscation
+- Windows Attacks & Defense
+- Intro to Academy's Purple Modules
+
+AI In Cybersecurity:
+- Fundamentals of AI
+- Applications of AI in InfoSec
+- LLM Output Attacks
+- Prompt Injection Attacks
+- Introduction to Red Teaming AI
+- AI Data Attacks
